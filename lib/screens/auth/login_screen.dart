@@ -46,33 +46,46 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     try {
       if (_isRegister) {
+        // 注册模式
         await ref.read(authStateProvider.notifier).register(phone, password);
       } else {
+        // 登录模式
         await ref.read(authStateProvider.notifier).login(phone, password);
       }
     } catch (e) {
       String errorMsg = e.toString();
-      // 简化错误信息
-      if (errorMsg.contains('409')) {
-        errorMsg = '该手机号已注册，请直接登录';
-        // 自动切换到登录模式
-        setState(() {
-          _isRegister = false;
-        });
-      } else if (errorMsg.contains('401')) {
-        errorMsg = '手机号或密码错误';
-      } else if (errorMsg.contains('DioException') || errorMsg.contains('SocketException')) {
-        errorMsg = '网络错误，请检查网络连接';
-      } else if (errorMsg.contains('500')) {
-        errorMsg = '服务器错误，请稍后重试';
-      } else if (errorMsg.contains('404')) {
-        errorMsg = '服务暂时不可用（404）';
-      } else if (errorMsg.contains('400')) {
-        errorMsg = '请求参数错误，请检查输入';
-      } else if (errorMsg.length > 100) {
-        errorMsg = '请求失败，请检查网络';
+
+      // 根据操作类型和错误码显示不同提示
+      if (_isRegister) {
+        // 注册时的错误
+        if (errorMsg.contains('409')) {
+          errorMsg = '该手机号已注册，请直接登录';
+          // 自动切换到登录模式
+          setState(() {
+            _isRegister = false;
+          });
+        } else if (errorMsg.contains('400')) {
+          errorMsg = '请求参数错误，请检查输入';
+        } else if (errorMsg.contains('500')) {
+          errorMsg = '服务器错误，请稍后重试';
+        } else if (errorMsg.contains('DioException') || errorMsg.contains('SocketException') || errorMsg.contains('XMLHttpRequest')) {
+          errorMsg = '网络错误，请检查网络连接或后端服务';
+        } else {
+          errorMsg = '注册失败，请稍后重试';
+        }
+      } else {
+        // 登录时的错误
+        if (errorMsg.contains('401') || errorMsg.contains('400')) {
+          errorMsg = '手机号或密码错误';
+        } else if (errorMsg.contains('500')) {
+          errorMsg = '服务器错误，请稍后重试';
+        } else if (errorMsg.contains('DioException') || errorMsg.contains('SocketException') || errorMsg.contains('XMLHttpRequest')) {
+          errorMsg = '网络错误，请检查网络连接或后端服务';
+        } else {
+          errorMsg = '登录失败，请稍后重试';
+        }
       }
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(errorMsg),
