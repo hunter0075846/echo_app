@@ -1,10 +1,13 @@
 import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
 import '../models/log_model.dart';
+
+// 仅在非 Web 平台导入 dart:io 和 path_provider
+import 'log_service_stub.dart'
+    if (dart.library.io) 'log_service_io.dart'
+    if (dart.library.html) 'log_service_web.dart';
 
 /// 日志服务类
 /// 支持内存存储和文件存储，提供日志记录、查询、导出等功能
@@ -48,47 +51,46 @@ class LogService {
   /// 从文件加载历史日志
   Future<void> _loadLogsFromFile() async {
     if (_logFilePath == null) return;
-    
+
     try {
-      final file = File(_logFilePath!);
-      if (await file.exists()) {
-        final lines = await file.readAsLines();
-        for (final line in lines) {
-          if (line.trim().isEmpty) continue;
-          try {
-            final json = jsonDecode(line) as Map<String, dynamic>;
-            final entry = LogEntry.fromJson(json);
-            _logs.add(entry);
-          } catch (e) {
-            debugPrint('❌ Failed to parse log line: $e');
-          }
+      final lines = await readLogsFromFile(_logFilePath!);
+      for (final line in lines) {
+        if (line.trim().isEmpty) continue;
+        try {
+          final json = jsonDecode(line) as Map<String, dynamic>;
+          final entry = LogEntry.fromJson(json);
+          _logs.add(entry);
+        } catch (e) {
+          debugPrint('❌ Failed to parse log line: $e');
         }
-        // 限制内存日志数量
-        if (_logs.length > _maxMemoryLogs) {
-          _logs.removeRange(0, _logs.length - _maxMemoryLogs);
-        }
-        _notifyListeners();
-        debugPrint('📁 Loaded ${_logs.length} logs from file');
       }
+      // 限制内存日志数量
+      if (_logs.length > _maxMemoryLogs) {
+        _logs.removeRange(0, _logs.length - _maxMemoryLogs);
+      }
+      _notifyListeners();
+      debugPrint('📁 Loaded ${_logs.length} logs from storage');
     } catch (e) {
-      debugPrint('❌ Failed to load logs from file: $e');
+      debugPrint('❌ Failed to load logs from storage: $e');
     }
   }
 
   /// 初始化日志文件
   Future<void> _initLogFile() async {
     try {
-      final directory = await getApplicationDocumentsDirectory();
-      final logDir = Directory('${directory.path}/logs');
-      if (!await logDir.exists()) {
-        await logDir.create(recursive: true);
+      final logDir = await getLogDirectoryPath();
+
+      if (logDir != null) {
+        // 移动端：使用文件系统
+        final now = DateTime.now();
+        final fileName = 'app_${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}.log';
+        _logFilePath = '$logDir/$fileName';
+        debugPrint('📁 Log file path: $_logFilePath');
+      } else {
+        // Web 端：使用 localStorage
+        _logFilePath = 'web_logs';
+        debugPrint('📁 Using localStorage for logs');
       }
-      
-      final now = DateTime.now();
-      final fileName = 'app_${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}.log';
-      _logFilePath = '${logDir.path}/$fileName';
-      
-      debugPrint('📁 Log file path: $_logFilePath');
     } catch (e) {
       debugPrint('❌ Failed to init log file: $e');
     }
@@ -278,13 +280,12 @@ class LogService {
   /// 写入文件
   Future<void> _writeToFile(LogEntry entry) async {
     if (_logFilePath == null) return;
-    
+
     try {
-      final file = File(_logFilePath!);
       final line = '${jsonEncode(entry.toJson())}\n';
-      await file.writeAsString(line, mode: FileMode.append);
+      await writeLogToFile(_logFilePath!, line);
     } catch (e) {
-      debugPrint('❌ Failed to write log to file: $e');
+      debugPrint('❌ Failed to write log to storage: $e');
     }
   }
 
