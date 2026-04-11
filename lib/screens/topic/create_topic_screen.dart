@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -7,6 +7,11 @@ import 'package:image_picker/image_picker.dart';
 import '../../providers/topic_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../theme/app_theme.dart';
+
+// 平台特定的文件导入
+import 'create_topic_screen_stub.dart'
+    if (dart.library.io) 'create_topic_screen_io.dart'
+    if (dart.library.html) 'create_topic_screen_web.dart';
 
 class CreateTopicScreen extends ConsumerStatefulWidget {
   final String? initialType;
@@ -24,7 +29,7 @@ class _CreateTopicScreenState extends ConsumerState<CreateTopicScreen> {
   final _linkController = TextEditingController();
   final _contentController = TextEditingController();
   String _selectedType = 'link'; // 'link' or 'image'
-  File? _selectedImage;
+  dynamic _selectedImage; // 使用 dynamic 类型，在移动端是 File，Web 端是 Uint8List
   bool _isLoading = false;
 
   @override
@@ -52,8 +57,9 @@ class _CreateTopicScreenState extends ConsumerState<CreateTopicScreen> {
     );
 
     if (pickedFile != null) {
+      final imageData = await loadImageData(pickedFile);
       setState(() {
-        _selectedImage = File(pickedFile.path);
+        _selectedImage = imageData;
       });
     }
   }
@@ -330,12 +336,7 @@ class _CreateTopicScreenState extends ConsumerState<CreateTopicScreen> {
                   children: [
                     ClipRRect(
                       borderRadius: BorderRadius.circular(12.r),
-                      child: Image.file(
-                        _selectedImage!,
-                        height: 200.h,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                      ),
+                      child: buildImageWidget(_selectedImage, 200.h),
                     ),
                     Positioned(
                       top: 8.w,
