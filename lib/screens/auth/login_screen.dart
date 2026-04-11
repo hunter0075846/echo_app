@@ -106,152 +106,156 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ],
       ),
       body: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 24.w),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(height: 20.h),
-              // Logo和标题
-              Center(
-                child: Column(
-                  children: [
-                    Container(
-                      width: 80.w,
-                      height: 80.w,
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryColor,
-                        borderRadius: BorderRadius.circular(20.r),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24.w),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(height: 20.h),
+                // Logo和标题
+                Center(
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 80.w,
+                        height: 80.w,
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryColor,
+                          borderRadius: BorderRadius.circular(20.r),
+                        ),
+                        child: Icon(
+                          Icons.chat_bubble_outline,
+                          size: 40.w,
+                          color: Colors.white,
+                        ),
                       ),
-                      child: Icon(
-                        Icons.chat_bubble_outline,
-                        size: 40.w,
-                        color: Colors.white,
+                      SizedBox(height: 16.h),
+                      Text(
+                        '回响',
+                        style: TextStyle(
+                          fontSize: 28.sp,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textPrimaryColor,
+                        ),
                       ),
-                    ),
-                    SizedBox(height: 16.h),
-                    Text(
-                      '回响',
-                      style: TextStyle(
-                        fontSize: 28.sp,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.textPrimaryColor,
+                      SizedBox(height: 8.h),
+                      Text(
+                        'AI驱动的热门话题广场',
+                        style: TextStyle(
+                          fontSize: 14.sp,
+                          color: AppTheme.textSecondaryColor,
+                        ),
                       ),
-                    ),
-                    SizedBox(height: 8.h),
-                    Text(
-                      'AI驱动的热门话题广场',
-                      style: TextStyle(
-                        fontSize: 14.sp,
-                        color: AppTheme.textSecondaryColor,
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              SizedBox(height: 60.h),
-              // 标题
-              Text(
-                _isRegister ? '注册账号' : '账号登录',
-                style: TextStyle(
-                  fontSize: 20.sp,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textPrimaryColor,
+                SizedBox(height: 40.h),
+                // 标题
+                Text(
+                  _isRegister ? '注册账号' : '账号登录',
+                  style: TextStyle(
+                    fontSize: 20.sp,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textPrimaryColor,
+                  ),
                 ),
-              ),
-              SizedBox(height: 24.h),
-              // 手机号输入
-              TextField(
-                controller: _phoneController,
-                keyboardType: TextInputType.phone,
-                maxLength: 11,
-                decoration: InputDecoration(
-                  hintText: '请输入手机号',
-                  prefixIcon: const Icon(Icons.phone_outlined),
-                  counterText: '',
+                SizedBox(height: 24.h),
+                // 手机号输入
+                TextField(
+                  controller: _phoneController,
+                  keyboardType: TextInputType.phone,
+                  maxLength: 11,
+                  decoration: InputDecoration(
+                    hintText: '请输入手机号',
+                    prefixIcon: const Icon(Icons.phone_outlined),
+                    counterText: '',
+                  ),
                 ),
-              ),
-              SizedBox(height: 16.h),
-              // 密码输入
-              TextField(
-                controller: _passwordController,
-                obscureText: _obscurePassword,
-                decoration: InputDecoration(
-                  hintText: '请输入密码（至少6位）',
-                  prefixIcon: const Icon(Icons.lock_outline),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscurePassword
-                          ? Icons.visibility_off
-                          : Icons.visibility,
+                SizedBox(height: 16.h),
+                // 密码输入
+                TextField(
+                  controller: _passwordController,
+                  obscureText: _obscurePassword,
+                  decoration: InputDecoration(
+                    hintText: '请输入密码（至少6位）',
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _obscurePassword = !_obscurePassword;
+                        });
+                      },
                     ),
+                  ),
+                ),
+                SizedBox(height: 32.h),
+                // 登录/注册按钮
+                SizedBox(
+                  width: double.infinity,
+                  height: 48.h,
+                  child: ElevatedButton(
+                    onPressed: authState.isLoading ? null : _submit,
+                    child: authState.isLoading
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : Text(_isRegister ? '注册' : '登录'),
+                  ),
+                ),
+                SizedBox(height: 16.h),
+                // 切换登录/注册
+                Center(
+                  child: TextButton(
                     onPressed: () {
                       setState(() {
-                        _obscurePassword = !_obscurePassword;
+                        _isRegister = !_isRegister;
                       });
                     },
-                  ),
-                ),
-              ),
-              SizedBox(height: 32.h),
-              // 登录/注册按钮
-              SizedBox(
-                width: double.infinity,
-                height: 48.h,
-                child: ElevatedButton(
-                  onPressed: authState.isLoading ? null : _submit,
-                  child: authState.isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : Text(_isRegister ? '注册' : '登录'),
-                ),
-              ),
-              SizedBox(height: 16.h),
-              // 切换登录/注册
-              Center(
-                child: TextButton(
-                  onPressed: () {
-                    setState(() {
-                      _isRegister = !_isRegister;
-                    });
-                  },
-                  child: Text(
-                    _isRegister ? '已有账号？去登录' : '没有账号？去注册',
-                    style: TextStyle(
-                      fontSize: 14.sp,
-                      color: AppTheme.primaryColor,
-                    ),
-                  ),
-                ),
-              ),
-              // 用户协议
-              Center(
-                child: TextButton(
-                  onPressed: () {
-                    // TODO: 打开用户协议
-                  },
-                  child: Text(
-                    '${_isRegister ? "注册" : "登录"}即表示同意《用户协议》和《隐私政策》',
-                    style: TextStyle(
-                      fontSize: 12.sp,
-                      color: AppTheme.textTertiaryColor,
-                    ),
-                  ),
-                ),
-              ),
-              if (authState.hasError)
-                Padding(
-                  padding: EdgeInsets.only(top: 16.h),
-                  child: Center(
                     child: Text(
-                      authState.error.toString(),
+                      _isRegister ? '已有账号？去登录' : '没有账号？去注册',
                       style: TextStyle(
                         fontSize: 14.sp,
-                        color: AppTheme.errorColor,
+                        color: AppTheme.primaryColor,
                       ),
                     ),
                   ),
                 ),
-            ],
+                // 用户协议
+                Center(
+                  child: TextButton(
+                    onPressed: () {
+                      // TODO: 打开用户协议
+                    },
+                    child: Text(
+                      '${_isRegister ? "注册" : "登录"}即表示同意《用户协议》和《隐私政策》',
+                      style: TextStyle(
+                        fontSize: 12.sp,
+                        color: AppTheme.textTertiaryColor,
+                      ),
+                    ),
+                  ),
+                ),
+                if (authState.hasError)
+                  Padding(
+                    padding: EdgeInsets.only(top: 16.h),
+                    child: Center(
+                      child: Text(
+                        authState.error.toString(),
+                        style: TextStyle(
+                          fontSize: 14.sp,
+                          color: AppTheme.errorColor,
+                        ),
+                      ),
+                    ),
+                  ),
+                // 底部留白，确保可以滚动到底部
+                SizedBox(height: 20.h),
+              ],
+            ),
           ),
         ),
       ),
