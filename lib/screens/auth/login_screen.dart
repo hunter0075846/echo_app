@@ -6,6 +6,39 @@ import '../../providers/auth_provider.dart';
 import '../../theme/app_theme.dart';
 import '../debug/log_viewer_screen.dart';
 
+/// 解析错误信息，返回友好的错误提示（本地版本，不依赖 AuthNotifier）
+String _parseErrorMessage(dynamic error, {required bool isRegister}) {
+  final errorMsg = error.toString();
+  
+  if (isRegister) {
+    // 注册时的错误
+    if (errorMsg.contains('409')) {
+      return '该手机号已注册，请直接登录';
+    } else if (errorMsg.contains('400')) {
+      return '请求参数错误，请检查输入';
+    } else if (errorMsg.contains('500')) {
+      return '服务器错误，请稍后重试';
+    } else if (errorMsg.contains('DioException') ||
+        errorMsg.contains('SocketException') ||
+        errorMsg.contains('XMLHttpRequest')) {
+      return '网络错误，请检查网络连接';
+    }
+    return '注册失败，请稍后重试';
+  } else {
+    // 登录时的错误
+    if (errorMsg.contains('401') || errorMsg.contains('400')) {
+      return '手机号或密码错误';
+    } else if (errorMsg.contains('500')) {
+      return '服务器错误，请稍后重试';
+    } else if (errorMsg.contains('DioException') ||
+        errorMsg.contains('SocketException') ||
+        errorMsg.contains('XMLHttpRequest')) {
+      return '网络错误，请检查网络连接';
+    }
+    return '登录失败，请稍后重试';
+  }
+}
+
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
@@ -53,13 +86,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         await ref.read(authStateProvider.notifier).login(phone, password);
       }
     } catch (e) {
+      // 直接在本地解析错误，不依赖 AuthNotifier
+      final errorMsg = _parseErrorMessage(e, isRegister: _isRegister);
+
       // 确保在 UI 线程显示错误
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-
-        // 从 AuthNotifier 获取友好的错误信息
-        final errorMsg = ref.read(authStateProvider.notifier).lastError ??
-            (_isRegister ? '注册失败，请稍后重试' : '登录失败，请稍后重试');
 
         // 如果是 409 错误（已注册），自动切换到登录模式
         if (_isRegister && e.toString().contains('409')) {

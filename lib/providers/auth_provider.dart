@@ -30,10 +30,14 @@ class AuthState {
 /// 解析错误信息，返回友好的错误提示
 String parseAuthError(dynamic error, {required bool isRegister}) {
   final errorMsg = error.toString();
+  
+  // 调试日志
+  print('🔍 parseAuthError: isRegister=$isRegister, error=$errorMsg');
 
   if (isRegister) {
     // 注册时的错误
     if (errorMsg.contains('409')) {
+      print('✅ 检测到 409 错误：手机号已注册');
       return '该手机号已注册，请直接登录';
     } else if (errorMsg.contains('400')) {
       return '请求参数错误，请检查输入';
