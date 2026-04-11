@@ -53,28 +53,33 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         await ref.read(authStateProvider.notifier).login(phone, password);
       }
     } catch (e) {
-      // 从 AuthNotifier 获取友好的错误信息
-      final errorMsg = ref.read(authStateProvider.notifier).lastError ??
-          (_isRegister ? '注册失败，请稍后重试' : '登录失败，请稍后重试');
+      // 确保在 UI 线程显示错误
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
 
-      // 如果是 409 错误（已注册），自动切换到登录模式
-      if (_isRegister && e.toString().contains('409')) {
-        setState(() {
-          _isRegister = false;
-        });
-      }
+        // 从 AuthNotifier 获取友好的错误信息
+        final errorMsg = ref.read(authStateProvider.notifier).lastError ??
+            (_isRegister ? '注册失败，请稍后重试' : '登录失败，请稍后重试');
 
-      // 显示 Toast 提示
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(errorMsg),
-          duration: const Duration(seconds: 3),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
+        // 如果是 409 错误（已注册），自动切换到登录模式
+        if (_isRegister && e.toString().contains('409')) {
+          setState(() {
+            _isRegister = false;
+          });
+        }
+
+        // 显示 Toast 提示
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMsg),
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
-        ),
-      );
+        );
+      });
     }
   }
 
