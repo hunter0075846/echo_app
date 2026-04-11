@@ -1,11 +1,14 @@
 import 'package:dio/dio.dart';
+import '../config/app_config.dart';
 import 'log_service.dart';
 
 class ApiService {
   late final Dio _dio;
-  
-  static String get baseUrl => 'https://echo-backend-beta.vercel.app/api';
-  
+
+  /// 后端 API 基础地址，从 AppConfig 获取
+  /// 支持通过 --dart-define=API_BASE_URL=xxx 在编译时覆盖
+  static String get baseUrl => AppConfig.apiBaseUrl;
+
   String? _authToken;
 
   // 单例模式
