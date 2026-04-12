@@ -2,13 +2,13 @@
 /// 环境变量可以通过 --dart-define 传入
 class AppConfig {
   /// 后端 API 基础地址
-  /// 默认值为 Vercel 部署地址
+  /// 默认值为 api.wudiclaw.cloud
   /// 可以通过 --dart-define=API_BASE_URL=https://xxx.com/api 覆盖
   static String get apiBaseUrl {
     const envUrl = String.fromEnvironment('API_BASE_URL');
     // 如果环境变量为空，使用默认值
-    return envUrl.isEmpty 
-        ? 'https://echo-backend-beta.vercel.app/api' 
+    return envUrl.isEmpty
+        ? 'https://api.wudiclaw.cloud/api'
         : envUrl;
   }
 
