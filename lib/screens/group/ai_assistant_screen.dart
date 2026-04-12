@@ -2,14 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
-import '../../providers/auth_provider.dart';
 import '../../services/ai_assistant_service.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 
 /// AI助手小安服务Provider
 final aiAssistantServiceProvider = Provider<AiAssistantService>((ref) {
-  final api = ref.watch(apiServiceProvider);
+  final api = ApiService();
   return AiAssistantService(api);
 });
 
