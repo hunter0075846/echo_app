@@ -8,6 +8,7 @@ import '../screens/topic/topic_detail_screen.dart';
 import '../screens/topic/create_topic_screen.dart';
 import '../screens/group/group_chat_screen.dart';
 import '../screens/group/memory_timeline_screen.dart';
+import '../screens/group/ai_assistant_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/profile/about_screen.dart';
 import '../providers/auth_provider.dart';
@@ -67,6 +68,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/group/:id/memories',
         builder: (context, state) => MemoryTimelineScreen(
+          groupId: state.pathParameters['id']!,
+        ),
+      ),
+      GoRoute(
+        path: '/group/:id/ai-chat',
+        builder: (context, state) => AiAssistantScreen(
           groupId: state.pathParameters['id']!,
         ),
       ),

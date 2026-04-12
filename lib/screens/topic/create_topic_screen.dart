@@ -123,8 +123,8 @@ class _CreateTopicScreenState extends ConsumerState<CreateTopicScreen> {
         sourceType: _selectedType,
         sourceUrl: _selectedType == 'link' ? _linkController.text.trim() : null,
         imageUrl: imageUrl,
-        content: _selectedType == 'link' 
-            ? _linkController.text.trim() 
+        content: _selectedType == 'link'
+            ? _linkController.text.trim()
             : _contentController.text.trim(),
       );
 
@@ -136,8 +136,21 @@ class _CreateTopicScreenState extends ConsumerState<CreateTopicScreen> {
       }
     } catch (e) {
       if (mounted) {
+        String errorMsg = '发布失败';
+        final errorStr = e.toString();
+
+        if (errorStr.contains('401')) {
+          errorMsg = '登录已过期，请重新登录';
+        } else if (errorStr.contains('400')) {
+          errorMsg = '请求参数错误';
+        } else if (errorStr.contains('500')) {
+          errorMsg = '服务器错误，请稍后重试';
+        } else if (errorStr.contains('DioException') || errorStr.contains('SocketException')) {
+          errorMsg = '网络错误，请检查网络连接';
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('发布失败: $e')),
+          SnackBar(content: Text(errorMsg)),
         );
       }
     } finally {

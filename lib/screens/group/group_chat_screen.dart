@@ -93,6 +93,88 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
       ),
       body: Column(
         children: [
+          // AI助手小安
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border(
+                bottom: BorderSide(
+                  color: Colors.grey.withOpacity(0.2),
+                  width: 1,
+                ),
+              ),
+            ),
+            child: Row(
+              children: [
+                Text(
+                  'AI助手',
+                  style: TextStyle(
+                    fontSize: 12.sp,
+                    color: AppTheme.textSecondaryColor,
+                  ),
+                ),
+                SizedBox(width: 12.w),
+                GestureDetector(
+                  onTap: () {
+                    context.push('/group/${widget.groupId}/ai-chat');
+                  },
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20.r),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 32.w,
+                          height: 32.w,
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryColor,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Center(
+                            child: Text(
+                              '安',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16.sp,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 8.w),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '小安',
+                              style: TextStyle(
+                                fontSize: 14.sp,
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.textPrimaryColor,
+                              ),
+                            ),
+                            Text(
+                              '点击与我对话',
+                              style: TextStyle(
+                                fontSize: 11.sp,
+                                color: AppTheme.textSecondaryColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
           // 消息列表
           Expanded(
             child: groupState.isLoadingMessages
