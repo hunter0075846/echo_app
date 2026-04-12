@@ -35,12 +35,12 @@ class GroupListTab extends ConsumerWidget {
       ),
       body: RefreshIndicator(
         onRefresh: () => ref.read(groupListProvider.notifier).loadGroups(),
-        child: _buildGroupList(groupState),
+        child: _buildGroupList(context, ref, groupState),
       ),
     );
   }
 
-  Widget _buildGroupList(GroupListState state) {
+  Widget _buildGroupList(BuildContext context, WidgetRef ref, GroupListState state) {
     if (state.isLoading) {
       return ListView.builder(
         padding: EdgeInsets.all(16.w),
@@ -77,51 +77,66 @@ class GroupListTab extends ConsumerWidget {
       );
     }
 
+    // 空状态：只显示小安
     if (state.groups.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.chat_bubble_outline,
-              size: 64.w,
-              color: AppTheme.textTertiaryColor,
+      return ListView(
+        padding: EdgeInsets.all(16.w),
+        children: [
+          // 小安卡片
+          _buildXiaoAnCard(context),
+          // 空状态提示
+          SizedBox(height: 32.h),
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.chat_bubble_outline,
+                  size: 64.w,
+                  color: AppTheme.textTertiaryColor,
+                ),
+                SizedBox(height: 16.h),
+                Text(
+                  '还没有群聊',
+                  style: TextStyle(
+                    fontSize: 18.sp,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textPrimaryColor,
+                  ),
+                ),
+                SizedBox(height: 8.h),
+                Text(
+                  '创建群聊或扫码加入',
+                  style: TextStyle(
+                    fontSize: 14.sp,
+                    color: AppTheme.textSecondaryColor,
+                  ),
+                ),
+                SizedBox(height: 24.h),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    _showCreateGroupDialog(context, ref);
+                  },
+                  icon: const Icon(Icons.add),
+                  label: const Text('创建群聊'),
+                ),
+              ],
             ),
-            SizedBox(height: 16.h),
-            Text(
-              '还没有群聊',
-              style: TextStyle(
-                fontSize: 18.sp,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimaryColor,
-              ),
-            ),
-            SizedBox(height: 8.h),
-            Text(
-              '创建群聊或扫码加入',
-              style: TextStyle(
-                fontSize: 14.sp,
-                color: AppTheme.textSecondaryColor,
-              ),
-            ),
-            SizedBox(height: 24.h),
-            ElevatedButton.icon(
-              onPressed: () {
-                // TODO: 创建群聊
-              },
-              icon: const Icon(Icons.add),
-              label: const Text('创建群聊'),
-            ),
-          ],
-        ),
+          ),
+        ],
       );
     }
 
+    // 有群聊时：显示小安 + 群聊列表
     return ListView.builder(
       padding: EdgeInsets.all(16.w),
-      itemCount: state.groups.length,
+      itemCount: state.groups.length + 1, // +1 为小安
       itemBuilder: (context, index) {
-        final group = state.groups[index];
+        // 第一个位置显示小安
+        if (index == 0) {
+          return _buildXiaoAnCard(context);
+        }
+        final group = state.groups[index - 1];
         return GroupCard(
           group: group,
           onTap: () {
@@ -129,6 +144,113 @@ class GroupListTab extends ConsumerWidget {
           },
         );
       },
+    );
+  }
+
+  // 构建小安卡片
+  Widget _buildXiaoAnCard(BuildContext context) {
+    return Card(
+      margin: EdgeInsets.only(bottom: 12.h),
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12.r),
+        side: BorderSide(
+          color: AppTheme.primaryColor.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: InkWell(
+        onTap: () {
+          // 进入小安对话页面（不传groupId，表示全局对话）
+          context.push('/ai-assistant');
+        },
+        borderRadius: BorderRadius.circular(12.r),
+        child: Padding(
+          padding: EdgeInsets.all(16.w),
+          child: Row(
+            children: [
+              // 小安头像
+              Container(
+                width: 56.w,
+                height: 56.w,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AppTheme.primaryColor,
+                      AppTheme.primaryColor.withOpacity(0.7),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+                child: Center(
+                  child: Text(
+                    '安',
+                    style: TextStyle(
+                      fontSize: 28.sp,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(width: 16.w),
+              // 小安信息
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          '小安',
+                          style: TextStyle(
+                            fontSize: 16.sp,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.textPrimaryColor,
+                          ),
+                        ),
+                        SizedBox(width: 8.w),
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(4.r),
+                          ),
+                          child: Text(
+                            'AI助手',
+                            style: TextStyle(
+                              fontSize: 10.sp,
+                              color: AppTheme.primaryColor,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 4.h),
+                    Text(
+                      '点击与我对话，我可以帮你推荐话题、分析群聊氛围',
+                      style: TextStyle(
+                        fontSize: 13.sp,
+                        color: AppTheme.textSecondaryColor,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              // 箭头
+              Icon(
+                Icons.chevron_right,
+                color: AppTheme.textTertiaryColor,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

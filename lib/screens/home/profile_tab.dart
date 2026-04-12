@@ -77,7 +77,7 @@ class ProfileTab extends ConsumerWidget {
                     IconButton(
                       icon: const Icon(Icons.edit_outlined),
                       onPressed: () {
-                        // TODO: 编辑资料
+                        _showEditNicknameDialog(context, ref, user?.nickname);
                       },
                     ),
                   ],
@@ -178,6 +178,60 @@ class ProfileTab extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showEditNicknameDialog(BuildContext context, WidgetRef ref, String? currentNickname) {
+    final controller = TextEditingController(text: currentNickname ?? '');
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('修改昵称'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            labelText: '昵称',
+            hintText: '请输入新昵称',
+          ),
+          maxLength: 20,
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final nickname = controller.text.trim();
+              if (nickname.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('昵称不能为空')),
+                );
+                return;
+              }
+
+              Navigator.pop(context);
+              try {
+                await ref.read(authStateProvider.notifier).updateProfile(nickname: nickname);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('昵称修改成功')),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('修改失败: $e')),
+                  );
+                }
+              }
+            },
+            child: const Text('保存'),
+          ),
+        ],
       ),
     );
   }

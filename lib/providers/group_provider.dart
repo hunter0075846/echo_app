@@ -1,7 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/group_model.dart';
+import '../models/user_model.dart';
 import '../services/group_service.dart';
+import 'auth_provider.dart';
 
 class GroupListState {
   final List<GroupModel> groups;
@@ -73,7 +75,8 @@ final groupServiceProvider = Provider<GroupService>((ref) {
 
 final groupListProvider = StateNotifierProvider<GroupListNotifier, GroupListState>((ref) {
   final groupService = ref.watch(groupServiceProvider);
-  return GroupListNotifier(groupService);
+  final authState = ref.watch(authStateProvider);
+  return GroupListNotifier(groupService, authState);
 });
 
 final groupDetailProvider = StateNotifierProvider.family<GroupDetailNotifier, GroupDetailState, String>((ref, groupId) {
@@ -83,9 +86,17 @@ final groupDetailProvider = StateNotifierProvider.family<GroupDetailNotifier, Gr
 
 class GroupListNotifier extends StateNotifier<GroupListState> {
   final GroupService _groupService;
+  final AsyncValue<UserModel?> _authState;
 
-  GroupListNotifier(this._groupService) : super(const GroupListState()) {
-    loadGroups();
+  GroupListNotifier(this._groupService, this._authState) : super(const GroupListState()) {
+    // 只在登录状态下加载群聊
+    _authState.whenOrNull(
+      data: (user) {
+        if (user != null) {
+          loadGroups();
+        }
+      },
+    );
   }
 
   Future<void> loadGroups() async {
@@ -135,6 +146,12 @@ class GroupListNotifier extends StateNotifier<GroupListState> {
       state = state.copyWith(error: e.toString());
       rethrow;
     }
+  }
+
+  Future<void> removeGroup(String groupId) async {
+    state = state.copyWith(
+      groups: state.groups.where((g) => g.id != groupId).toList(),
+    );
   }
 }
 

@@ -90,7 +90,7 @@ class AuthService {
   }
 
   Future<UserModel> updateProfile({String? nickname, String? avatar}) async {
-    final response = await _api.patch('/auth/profile', data: {
+    final response = await _api.patch('/auth/me', data: {
       if (nickname != null) 'nickname': nickname,
       if (avatar != null) 'avatar': avatar,
     });

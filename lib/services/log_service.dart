@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import '../models/log_model.dart';
 
@@ -82,6 +83,12 @@ class LogService {
 
       if (logDir != null) {
         // 移动端：使用文件系统
+        // 确保日志目录存在
+        final directory = Directory(logDir);
+        if (!await directory.exists()) {
+          await directory.create(recursive: true);
+        }
+
         final now = DateTime.now();
         final fileName = 'app_${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}.log';
         _logFilePath = '$logDir/$fileName';

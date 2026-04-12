@@ -14,11 +14,11 @@ final aiAssistantServiceProvider = Provider<AiAssistantService>((ref) {
 
 /// AI助手小安对话页面
 class AiAssistantScreen extends ConsumerStatefulWidget {
-  final String groupId;
+  final String? groupId;
 
   const AiAssistantScreen({
     super.key,
-    required this.groupId,
+    this.groupId,
   });
 
   @override
@@ -35,11 +35,15 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
   void initState() {
     super.initState();
     // 添加欢迎消息
+    final welcomeContent = widget.groupId != null
+        ? '你好！我是小安，你的群聊AI助手。\n\n我可以帮你：\n• 推荐热门话题\n• 分析群聊氛围\n• 生成回忆总结\n• 回答关于群聊的问题\n\n有什么我可以帮你的吗？'
+        : '你好！我是小安，你的AI助手。\n\n我可以帮你：\n• 推荐热门话题\n• 分析群聊氛围\n• 生成回忆总结\n• 回答关于群聊的问题\n\n有什么我可以帮你的吗？';
     _messages.add(
       ChatMessage(
-        content: '你好！我是小安，你的群聊AI助手。\n\n我可以帮你：\n• 推荐热门话题\n• 分析群聊氛围\n• 生成回忆总结\n• 回答关于群聊的问题\n\n有什么我可以帮你的吗？',
+        content: welcomeContent,
         isUser: false,
         timestamp: DateTime.now(),
+        isWelcome: true,
       ),
     );
   }
