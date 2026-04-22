@@ -4,7 +4,8 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
+  sdk: '>=3.6.0 <3.7.0'
+  flutter: '3.27.1'
 
 dependencies:
   flutter:
@@ -44,7 +45,7 @@ dependencies:
   intl: ^0.18.1
   uuid: ^4.2.2
   url_launcher: ^6.2.2
-  share_plus: ^7.2.1
+  share_plus: ^10.1.2
   qr_flutter: ^4.1.0
   # qr_code_scanner: ^1.0.1  # 暂时移除，有兼容性问题
 
