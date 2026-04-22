@@ -43,3 +43,16 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# FVM (Flutter Version Management) - 忽略本地缓存，但保留配置文件
+.fvm/flutter_sdk
+
+# Gradle 本地缓存（每台电脑独立）
+.gradle/
+local.properties
+
+# iOS 本地生成文件
+/ios/Pods/
+/ios/.symlinks/
+/ios/Flutter/Flutter.framework
+/ios/Flutter/Flutter.podspec
