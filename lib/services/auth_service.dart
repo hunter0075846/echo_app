@@ -75,6 +75,9 @@ class AuthService {
     _token = response.data['token'];
     _currentUser = UserModel.fromJson(response.data['user']);
 
+    // 设置 API Token
+    _api.setAuthToken(_token!);
+
     await _saveToken(_token!);
     await _saveUser(_currentUser!);
 
