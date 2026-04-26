@@ -5,14 +5,55 @@ import 'package:go_router/go_router.dart';
 
 import '../../models/group_model.dart';
 import '../../providers/group_provider.dart';
+import '../../services/openclaw_service.dart';
+import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/loading_shimmer.dart';
 
-class GroupListTab extends ConsumerWidget {
+class GroupListTab extends ConsumerStatefulWidget {
   const GroupListTab({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<GroupListTab> createState() => _GroupListTabState();
+}
+
+class _GroupListTabState extends ConsumerState<GroupListTab> {
+  late final OpenClawService _openClawService;
+  Map<String, dynamic> _openClawStatus = {};
+  bool _openClawLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _openClawService = OpenClawService(ApiService());
+    _loadOpenClawStatus();
+  }
+
+  Future<void> _loadOpenClawStatus() async {
+    try {
+      final status = await _openClawService.getStatus();
+      if (mounted) {
+        setState(() {
+          _openClawStatus = status;
+          _openClawLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _openClawLoading = false);
+      }
+    }
+  }
+
+  Future<void> _refreshAll() async {
+    await Future.wait([
+      ref.read(groupListProvider.notifier).loadGroups(),
+      _loadOpenClawStatus(),
+    ]);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final groupState = ref.watch(groupListProvider);
 
     return Scaffold(
@@ -21,27 +62,23 @@ class GroupListTab extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            onPressed: () {
-              _showCreateGroupDialog(context, ref);
-            },
+            onPressed: () => _showCreateGroupDialog(context, ref),
           ),
           IconButton(
             icon: const Icon(Icons.qr_code_scanner),
-            onPressed: () {
-              _showJoinGroupDialog(context, ref);
-            },
+            onPressed: () => _showJoinGroupDialog(context, ref),
           ),
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: () => ref.read(groupListProvider.notifier).loadGroups(),
-        child: _buildGroupList(context, ref, groupState),
+        onRefresh: _refreshAll,
+        child: _buildBody(context, ref, groupState),
       ),
     );
   }
 
-  Widget _buildGroupList(BuildContext context, WidgetRef ref, GroupListState state) {
-    if (state.isLoading) {
+  Widget _buildBody(BuildContext context, WidgetRef ref, GroupListState state) {
+    if (state.isLoading && state.groups.isEmpty && _openClawLoading) {
       return ListView.builder(
         padding: EdgeInsets.all(16.w),
         itemCount: 5,
@@ -69,7 +106,7 @@ class GroupListTab extends ConsumerWidget {
             ),
             SizedBox(height: 8.h),
             TextButton(
-              onPressed: () {},
+              onPressed: _refreshAll,
               child: const Text('重试'),
             ),
           ],
@@ -77,107 +114,107 @@ class GroupListTab extends ConsumerWidget {
       );
     }
 
-    // 空状态：只显示小安
-    if (state.groups.isEmpty) {
-      return ListView(
-        padding: EdgeInsets.all(16.w),
-        children: [
-          // 小安卡片
-          _buildXiaoAnCard(context),
-          // 空状态提示
-          SizedBox(height: 32.h),
-          Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.chat_bubble_outline,
-                  size: 64.w,
-                  color: AppTheme.textTertiaryColor,
-                ),
-                SizedBox(height: 16.h),
-                Text(
-                  '还没有群聊',
-                  style: TextStyle(
-                    fontSize: 18.sp,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textPrimaryColor,
-                  ),
-                ),
-                SizedBox(height: 8.h),
-                Text(
-                  '创建群聊或扫码加入',
-                  style: TextStyle(
-                    fontSize: 14.sp,
-                    color: AppTheme.textSecondaryColor,
-                  ),
-                ),
-                SizedBox(height: 24.h),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    _showCreateGroupDialog(context, ref);
-                  },
-                  icon: const Icon(Icons.add),
-                  label: const Text('创建群聊'),
-                ),
-              ],
+    return ListView(
+      padding: EdgeInsets.all(16.w),
+      children: [
+        // ========== AI助手区域 ==========
+        _buildSectionHeader(
+          context,
+          title: 'AI助手',
+          action: const SizedBox.shrink(),
+        ),
+        SizedBox(height: 12.h),
+
+        // 小安卡片
+        _buildXiaoAnCard(context),
+        SizedBox(height: 10.h),
+
+        // 我的OpenClaw
+        if (_openClawLoading)
+          const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)))
+        else
+          _buildOpenClawCard(context),
+
+        SizedBox(height: 16.h),
+        const Divider(),
+        SizedBox(height: 16.h),
+
+        // ========== 群聊区域 ==========
+        _buildSectionHeader(
+          context,
+          title: '群聊',
+          action: TextButton.icon(
+            onPressed: () => _showCreateGroupDialog(context, ref),
+            icon: Icon(Icons.add, size: 16.sp),
+            label: Text('创建', style: TextStyle(fontSize: 13.sp)),
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.zero,
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
           ),
-        ],
-      );
-    }
+        ),
+        SizedBox(height: 12.h),
 
-    // 有群聊时：显示小安 + 群聊列表
-    return ListView.builder(
-      padding: EdgeInsets.all(16.w),
-      itemCount: state.groups.length + 1, // +1 为小安
-      itemBuilder: (context, index) {
-        // 第一个位置显示小安
-        if (index == 0) {
-          return _buildXiaoAnCard(context);
-        }
-        final group = state.groups[index - 1];
-        return GroupCard(
-          group: group,
-          onTap: () {
-            context.push('/group/${group.id}');
-          },
-        );
-      },
+        if (state.groups.isEmpty)
+          _buildEmptyGroupState(context, ref)
+        else
+          ...state.groups.map((group) => GroupCard(
+                group: group,
+                onTap: () => context.push('/group/${group.id}'),
+              )),
+      ],
     );
   }
 
-  // 构建小安卡片
+  Widget _buildSectionHeader(
+    BuildContext context, {
+    required String title,
+    required Widget action,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 18.sp,
+            fontWeight: FontWeight.w700,
+            color: AppTheme.textPrimaryColor,
+          ),
+        ),
+        action,
+      ],
+    );
+  }
+
+  // 小安卡片
   Widget _buildXiaoAnCard(BuildContext context) {
     return Card(
-      margin: EdgeInsets.only(bottom: 12.h),
-      elevation: 2,
+      margin: EdgeInsets.zero,
+      elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12.r),
         side: BorderSide(
-          color: AppTheme.primaryColor.withOpacity(0.3),
+          color: AppTheme.primaryColor.withOpacity(0.2),
           width: 1,
         ),
       ),
       child: InkWell(
-        onTap: () {
-          // 进入小安对话页面（不传groupId，表示全局对话）
-          context.push('/ai-assistant');
-        },
+        onTap: () => context.push('/ai-assistant'),
         borderRadius: BorderRadius.circular(12.r),
         child: Padding(
-          padding: EdgeInsets.all(16.w),
+          padding: EdgeInsets.all(14.w),
           child: Row(
             children: [
-              // 小安头像
               Container(
-                width: 56.w,
-                height: 56.w,
+                width: 48.w,
+                height: 48.w,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
                       AppTheme.primaryColor,
-                      AppTheme.primaryColor.withOpacity(0.7),
+                      AppTheme.primaryLightColor,
                     ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
@@ -188,15 +225,14 @@ class GroupListTab extends ConsumerWidget {
                   child: Text(
                     '安',
                     style: TextStyle(
-                      fontSize: 28.sp,
+                      fontSize: 22.sp,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
                   ),
                 ),
               ),
-              SizedBox(width: 16.w),
-              // 小安信息
+              SizedBox(width: 12.w),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -206,12 +242,12 @@ class GroupListTab extends ConsumerWidget {
                         Text(
                           '小安',
                           style: TextStyle(
-                            fontSize: 16.sp,
+                            fontSize: 15.sp,
                             fontWeight: FontWeight.w600,
                             color: AppTheme.textPrimaryColor,
                           ),
                         ),
-                        SizedBox(width: 8.w),
+                        SizedBox(width: 6.w),
                         Container(
                           padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
                           decoration: BoxDecoration(
@@ -219,7 +255,7 @@ class GroupListTab extends ConsumerWidget {
                             borderRadius: BorderRadius.circular(4.r),
                           ),
                           child: Text(
-                            'AI助手',
+                            '官方',
                             style: TextStyle(
                               fontSize: 10.sp,
                               color: AppTheme.primaryColor,
@@ -231,9 +267,9 @@ class GroupListTab extends ConsumerWidget {
                     ),
                     SizedBox(height: 4.h),
                     Text(
-                      '点击与我对话，我可以帮你推荐话题、分析群聊氛围',
+                      '推荐话题、分析群聊氛围、生成回忆总结',
                       style: TextStyle(
-                        fontSize: 13.sp,
+                        fontSize: 12.sp,
                         color: AppTheme.textSecondaryColor,
                       ),
                       maxLines: 1,
@@ -242,13 +278,221 @@ class GroupListTab extends ConsumerWidget {
                   ],
                 ),
               ),
-              // 箭头
               Icon(
                 Icons.chevron_right,
+                size: 20,
                 color: AppTheme.textTertiaryColor,
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  // 我的OpenClaw卡片
+  Widget _buildOpenClawCard(BuildContext context) {
+    final connected = _openClawStatus['connected'] == true;
+    final status = _openClawStatus['status'] as String? ?? 'none';
+
+    if (status == 'none') {
+      return _buildOpenClawConnectPrompt(context);
+    }
+
+    return Container(
+      margin: EdgeInsets.only(bottom: 10.h),
+      child: Card(
+        margin: EdgeInsets.zero,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12.r),
+          side: BorderSide(
+            color: connected ? Colors.green.withOpacity(0.3) : Colors.orange.withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+        child: InkWell(
+          onTap: () {
+            if (connected) {
+              context.push('/openclaw/chat');
+            } else {
+              _showOpenClawSetup(context);
+            }
+          },
+          borderRadius: BorderRadius.circular(12.r),
+          child: Padding(
+            padding: EdgeInsets.all(14.w),
+            child: Row(
+              children: [
+                Container(
+                  width: 48.w,
+                  height: 48.w,
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                  child: Center(
+                    child: Text(
+                      '🦞',
+                      style: TextStyle(fontSize: 22.sp),
+                    ),
+                  ),
+                ),
+                SizedBox(width: 12.w),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            '我的OpenClaw',
+                            style: TextStyle(
+                              fontSize: 15.sp,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.textPrimaryColor,
+                            ),
+                          ),
+                          SizedBox(width: 6.w),
+                          Container(
+                            padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
+                            decoration: BoxDecoration(
+                              color: connected
+                                  ? Colors.green.withOpacity(0.1)
+                                  : Colors.orange.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(4.r),
+                            ),
+                            child: Text(
+                              connected ? '在线' : '等待连接',
+                              style: TextStyle(
+                                fontSize: 10.sp,
+                                color: connected ? Colors.green : Colors.orange,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 4.h),
+                      Text(
+                        connected
+                            ? '点击开始对话'
+                            : '在OpenClaw设备上执行安装脚本以完成关联',
+                        style: TextStyle(
+                          fontSize: 12.sp,
+                          color: AppTheme.textSecondaryColor,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_right,
+                  size: 20,
+                  color: AppTheme.textTertiaryColor,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 未关联时的引导
+  Widget _buildOpenClawConnectPrompt(BuildContext context) {
+    return InkWell(
+      onTap: () => _showOpenClawSetup(context),
+      borderRadius: BorderRadius.circular(12.r),
+      child: Container(
+        padding: EdgeInsets.symmetric(vertical: 16.h, horizontal: 14.w),
+        decoration: BoxDecoration(
+          color: AppTheme.backgroundColor,
+          borderRadius: BorderRadius.circular(12.r),
+          border: Border.all(color: AppTheme.borderColor, style: BorderStyle.solid),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.link,
+              color: AppTheme.primaryColor,
+              size: 22,
+            ),
+            SizedBox(width: 10.w),
+            Expanded(
+              child: Text(
+                '关联我的OpenClaw',
+                style: TextStyle(
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w500,
+                  color: AppTheme.textPrimaryColor,
+                ),
+              ),
+            ),
+            Text(
+              '去关联',
+              style: TextStyle(
+                fontSize: 13.sp,
+                color: AppTheme.primaryColor,
+              ),
+            ),
+            Icon(
+              Icons.chevron_right,
+              size: 18,
+              color: AppTheme.primaryColor,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showOpenClawSetup(BuildContext context) {
+    context.push('/openclaw/setup').then((_) => _loadOpenClawStatus());
+  }
+
+  // 空群聊状态
+  Widget _buildEmptyGroupState(BuildContext context, WidgetRef ref) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 32.h),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.chat_bubble_outline,
+              size: 48.w,
+              color: AppTheme.textTertiaryColor,
+            ),
+            SizedBox(height: 12.h),
+            Text(
+              '还没有群聊',
+              style: TextStyle(
+                fontSize: 16.sp,
+                fontWeight: FontWeight.w500,
+                color: AppTheme.textSecondaryColor,
+              ),
+            ),
+            SizedBox(height: 6.h),
+            Text(
+              '创建群聊或扫码加入',
+              style: TextStyle(
+                fontSize: 13.sp,
+                color: AppTheme.textTertiaryColor,
+              ),
+            ),
+            SizedBox(height: 16.h),
+            ElevatedButton.icon(
+              onPressed: () => _showCreateGroupDialog(context, ref),
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('创建群聊'),
+              style: ElevatedButton.styleFrom(
+                padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 10.h),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -391,78 +635,79 @@ class GroupCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: EdgeInsets.only(bottom: 12.h),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12.r),
-        child: Padding(
-          padding: EdgeInsets.all(16.w),
-          child: Row(
-            children: [
-              // 群头像
-              Container(
-                width: 56.w,
-                height: 56.w,
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryColor,
-                  borderRadius: BorderRadius.circular(12.r),
-                ),
-                child: Center(
-                  child: Text(
-                    group.name.isNotEmpty ? group.name[0] : '群',
-                    style: TextStyle(
-                      fontSize: 24.sp,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+    return Container(
+      margin: EdgeInsets.only(bottom: 10.h),
+      child: Card(
+        margin: EdgeInsets.zero,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12.r),
+          child: Padding(
+            padding: EdgeInsets.all(14.w),
+            child: Row(
+              children: [
+                Container(
+                  width: 48.w,
+                  height: 48.w,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor,
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                  child: Center(
+                    child: Text(
+                      group.name.isNotEmpty ? group.name[0] : '群',
+                      style: TextStyle(
+                        fontSize: 22.sp,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ),
-              ),
-              SizedBox(width: 16.w),
-              // 群信息
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      group.name,
-                      style: TextStyle(
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.textPrimaryColor,
-                      ),
-                    ),
-                    if (group.description != null && group.description!.isNotEmpty)
-                      Padding(
-                        padding: EdgeInsets.only(top: 4.h),
-                        child: Text(
-                          group.description!,
-                          style: TextStyle(
-                            fontSize: 14.sp,
-                            color: AppTheme.textSecondaryColor,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                SizedBox(width: 12.w),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        group.name,
+                        style: TextStyle(
+                          fontSize: 15.sp,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textPrimaryColor,
                         ),
                       ),
-                    SizedBox(height: 4.h),
-                    Text(
-                      '${group.currentMembers}/${group.maxMembers} 人',
-                      style: TextStyle(
-                        fontSize: 12.sp,
-                        color: AppTheme.textTertiaryColor,
+                      if (group.description != null && group.description!.isNotEmpty)
+                        Padding(
+                          padding: EdgeInsets.only(top: 4.h),
+                          child: Text(
+                            group.description!,
+                            style: TextStyle(
+                              fontSize: 13.sp,
+                              color: AppTheme.textSecondaryColor,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      SizedBox(height: 4.h),
+                      Text(
+                        '${group.currentMembers}/${group.maxMembers} 人',
+                        style: TextStyle(
+                          fontSize: 12.sp,
+                          color: AppTheme.textTertiaryColor,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              // 箭头
-              Icon(
-                Icons.chevron_right,
-                color: AppTheme.textTertiaryColor,
-              ),
-            ],
+                Icon(
+                  Icons.chevron_right,
+                  size: 20,
+                  color: AppTheme.textTertiaryColor,
+                ),
+              ],
+            ),
           ),
         ),
       ),

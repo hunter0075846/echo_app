@@ -120,30 +120,35 @@ class _TopicSquareTabState extends ConsumerState<TopicSquareTab>
     // 显示错误
     if (state.error != null && state.topics.isEmpty) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.error_outline,
-              size: 48.w,
-              color: AppTheme.errorColor,
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: EdgeInsets.all(16.w),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  size: 48.w,
+                  color: AppTheme.errorColor,
+                ),
+                SizedBox(height: 16.h),
+                Text(
+                  '加载失败: ${state.error}',
+                  style: TextStyle(
+                    color: AppTheme.textSecondaryColor,
+                    fontSize: 14.sp,
+                  ),
+                ),
+                SizedBox(height: 16.h),
+                ElevatedButton(
+                  onPressed: () {
+                    ref.read(topicListProvider.notifier).loadTopics(refresh: true);
+                  },
+                  child: const Text('重试'),
+                ),
+              ],
             ),
-            SizedBox(height: 16.h),
-            Text(
-              '加载失败: ${state.error}',
-              style: TextStyle(
-                color: AppTheme.textSecondaryColor,
-                fontSize: 14.sp,
-              ),
-            ),
-            SizedBox(height: 16.h),
-            ElevatedButton(
-              onPressed: () {
-                ref.read(topicListProvider.notifier).loadTopics(refresh: true);
-              },
-              child: const Text('重试'),
-            ),
-          ],
+          ),
         ),
       );
     }

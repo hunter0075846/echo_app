@@ -8,7 +8,7 @@ class AppConfig {
     const envUrl = String.fromEnvironment('API_BASE_URL');
     // 如果环境变量为空，使用默认值
     return envUrl.isEmpty
-        ? 'https://api.wudiclaw.cloud/api'
+        ? 'http://api.wudiclaw.cloud/api'
         : envUrl;
   }
 

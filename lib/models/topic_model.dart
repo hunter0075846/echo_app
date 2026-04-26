@@ -38,7 +38,9 @@ class TopicModel {
       description: json['description'] as String?,
       imageUrl: json['imageUrl'] as String?,
       sourceUrl: json['sourceUrl'] as String?,
-      author: UserModel.fromJson(json['author'] as Map<String, dynamic>),
+      author: json['author'] != null && json['author'] is Map<String, dynamic>
+          ? UserModel.fromJson(json['author'] as Map<String, dynamic>)
+          : UserModel(id: '', phone: '', nickname: '未知用户'),
       viewCount: json['viewCount'] as int? ?? 0,
       commentCount: json['commentCount'] as int? ?? 0,
       likeCount: json['likeCount'] as int? ?? 0,

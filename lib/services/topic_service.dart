@@ -33,7 +33,12 @@ class TopicService {
       queryParameters: queryParams,
     );
 
-    final data = response.data as Map<String, dynamic>;
+    final dynamic rawData = response.data;
+    if (rawData is String) {
+      final preview = rawData.length > 300 ? '${rawData.substring(0, 300)}...' : rawData;
+      throw Exception('Topics API returned String instead of JSON: $preview');
+    }
+    final data = rawData as Map<String, dynamic>;
     final topics = (data['topics'] as List)
         .map((json) => TopicModel.fromJson(json as Map<String, dynamic>))
         .toList();

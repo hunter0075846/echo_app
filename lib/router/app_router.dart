@@ -11,6 +11,8 @@ import '../screens/group/memory_timeline_screen.dart';
 import '../screens/group/ai_assistant_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/profile/about_screen.dart';
+import '../screens/openclaw/openclaw_setup_screen.dart';
+import '../screens/openclaw/openclaw_chat_screen.dart';
 import '../providers/auth_provider.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -88,6 +90,15 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/about',
         builder: (context, state) => const AboutScreen(),
+      ),
+      // OpenClaw 路由
+      GoRoute(
+        path: '/openclaw/setup',
+        builder: (context, state) => const OpenClawSetupScreen(),
+      ),
+      GoRoute(
+        path: '/openclaw/chat',
+        builder: (context, state) => const OpenClawChatScreen(),
       ),
     ],
     errorBuilder: (context, state) => Scaffold(
