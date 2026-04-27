@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../services/app_service.dart';
 import '../../theme/app_theme.dart';
 
 class ProfileTab extends ConsumerWidget {
@@ -146,6 +148,12 @@ class ProfileTab extends ConsumerWidget {
                   ),
                   const Divider(height: 1),
                   _MenuItem(
+                    icon: Icons.system_update,
+                    title: '检查更新',
+                    onTap: () => _checkUpdate(context),
+                  ),
+                  const Divider(height: 1),
+                  _MenuItem(
                     icon: Icons.logout,
                     title: '退出登录',
                     textColor: AppTheme.errorColor,
@@ -234,6 +242,87 @@ class ProfileTab extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _checkUpdate(BuildContext context) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final appService = AppService();
+      final versionInfo = await appService.checkUpdate();
+      final currentVersion = await appService.getCurrentVersion();
+
+      if (context.mounted) Navigator.pop(context);
+
+      final isForce = AppService.isForceUpdate(currentVersion, versionInfo.minVersion);
+      final hasNew = AppService.hasNewVersion(currentVersion, versionInfo.latestVersion);
+
+      if (!hasNew) {
+        if (context.mounted) {
+          showDialog(
+            context: context,
+            builder: (_) => AlertDialog(
+              title: const Text('已是最新版本'),
+              content: Text('当前版本: $currentVersion'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('确定'),
+                ),
+              ],
+            ),
+          );
+        }
+        return;
+      }
+
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: Text(isForce ? '需要强制更新' : '发现新版本'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('当前版本: $currentVersion'),
+                Text('最新版本: ${versionInfo.latestVersion}'),
+                const SizedBox(height: 8),
+                Text(versionInfo.releaseNotes),
+              ],
+            ),
+            actions: [
+              if (!isForce)
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('稍后'),
+                ),
+              ElevatedButton(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  final uri = Uri.parse(versionInfo.downloadUrl);
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  }
+                },
+                child: const Text('立即下载'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) Navigator.pop(context);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('检查更新失败: $e')),
+        );
+      }
+    }
   }
 }
 

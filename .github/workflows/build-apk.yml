@@ -1,0 +1,128 @@
+name: Build and Deploy APK
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号 (如 1.0.1)'
+        required: true
+        default: '1.0.1'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.0'
+          channel: 'stable'
+
+      - name: Extract version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          fi
+          # 同步 pubspec.yaml 版本号到 tag 版本
+          sed -i "s/^version: .*/version: ${VERSION}+1/" pubspec.yaml
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "构建版本: $VERSION"
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build APK
+        run: flutter build apk --release
+
+      - name: Prepare APK
+        run: |
+          mkdir -p deploy
+          cp build/app/outputs/flutter-apk/app-release.apk deploy/echo-latest.apk
+
+      - name: Ensure server directory and Nginx route
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_KEY }}
+          script: |
+            set -e
+            mkdir -p /var/www/app
+            chown -R $(whoami):$(whoami) /var/www/app || true
+
+            # 确保 Nginx /app 路由存在（幂等）
+            DOMAIN="api.wudiclaw.cloud"
+            NGINX_CONF=""
+            for dir in /etc/nginx/sites-enabled /etc/nginx/conf.d; do
+              if [ -d "$dir" ]; then
+                NGINX_CONF=$(grep -rl "server_name.*$DOMAIN" "$dir" 2>/dev/null | head -n1 || true)
+                if [ -n "$NGINX_CONF" ]; then break; fi
+              fi
+            done
+
+            if [ -n "$NGINX_CONF" ] && ! grep -q "location /app" "$NGINX_CONF"; then
+              awk '
+                { lines[NR] = $0 }
+                /^\s*}/ { last_close = NR }
+                END {
+                  for (i = 1; i <= NR; i++) {
+                    if (i == last_close) {
+                      print "    location /app {"
+                      print "        alias /var/www/app;"
+                      print "        add_header Content-Disposition \"attachment; filename=echo-latest.apk\";"
+                      print "        try_files $uri =404;"
+                      print "    }"
+                    }
+                    print lines[i]
+                  }
+                }
+              ' "$NGINX_CONF" > /tmp/nginx_tmp.conf
+              sudo mv /tmp/nginx_tmp.conf "$NGINX_CONF"
+              sudo nginx -t
+              sudo systemctl reload nginx
+              echo "Nginx /app 路由已添加"
+            else
+              echo "Nginx /app 路由已存在或未找到配置文件"
+            fi
+
+      - name: Upload APK to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_KEY }}
+          source: "deploy/echo-latest.apk"
+          target: "/var/www/app"
+          strip_components: 1
+
+      - name: Update backend version
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_KEY }}
+          script: |
+            set -e
+            APP_DIR="/opt/echo-backend"
+            VERSION="${{ steps.version.outputs.version }}"
+
+            # 更新后端 .env 版本号
+            if [ -f "$APP_DIR/.env" ]; then
+              sed -i "s/NEXT_PUBLIC_APP_VERSION=.*/NEXT_PUBLIC_APP_VERSION=$VERSION/" "$APP_DIR/.env"
+              echo "已更新 NEXT_PUBLIC_APP_VERSION=$VERSION"
+            else
+              echo "警告: $APP_DIR/.env 不存在，跳过版本更新"
+            fi
+
+            # 重启后端以加载新环境变量
+            pm2 restart echo-backend --update-env || true
+            echo "APK 部署完成，版本: $VERSION"
