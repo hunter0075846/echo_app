@@ -44,7 +44,7 @@ dependencies:
   intl: ^0.18.1
   uuid: ^4.2.2
   url_launcher: ^6.2.2
-  share_plus: ^10.1.2
+  share_plus: ^7.2.2
   qr_flutter: ^4.1.0
   package_info_plus: ^5.0.1
   # qr_code_scanner: ^1.0.1  # 暂时移除，有兼容性问题
