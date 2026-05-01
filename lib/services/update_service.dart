@@ -34,7 +34,7 @@ class UpdateService {
         isForce: _shouldUpdate(currentVersion, minVersion),
       );
     } catch (e) {
-      logService.logError('版本检查失败', error: e.toString());
+      logService.error('UpdateService', '版本检查失败', error: e);
       return null;
     }
   }
