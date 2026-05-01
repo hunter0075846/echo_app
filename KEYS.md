@@ -5,6 +5,20 @@
 
 ---
 
+## SSH 登录密钥
+
+| Key 名称 | 类型 | 存储位置 | 配置位置 | 用途 |
+|----------|------|----------|----------|------|
+| `id_ed25519_tencent` | SSH Ed25519 密钥对 | 本地: `C:\Users\MateBook\.ssh\` | 服务器 `/root/.ssh/authorized_keys` + `/home/deploy/.ssh/authorized_keys` | 本地 SSH 登录腾讯云服务器 |
+
+### GitHub Actions 部署密钥
+
+| Key 名称 | 类型 | 存储位置 | 配置位置 | 用途 |
+|----------|------|----------|----------|------|
+| `DEPLOY_KEY` | SSH 私钥（同 id_ed25519_tencent 私钥） | GitHub Secrets（echo-backend 仓库） | 仓库 Settings → Secrets → Actions | Actions 工作流 SSH 登录服务器执行部署 |
+
+---
+
 ## 后端关键配置 (echo_backend/.env)
 
 | 序号 | 配置项 | 用途 | 获取方式 |
@@ -47,6 +61,34 @@ static String get apiBaseUrl => 'https://api.wudiclaw.cloud/api';
 flutter build apk --release \
   --dart-define=API_BASE_URL=https://your-api.com/api
 ```
+
+---
+
+## 前端构建相关密钥 (echo_app)
+
+| 序号 | 配置项 | 用途 | 当前状态 | 备注 |
+|------|--------|------|----------|------|
+| 1 | **Android Keystore** | APK/AAB 发布签名 | 未配置（使用 debug 签名） | 正式上架应用商店必须配置 release 签名 |
+| 2 | **Keystore 密码** | 签名密钥保护 | 未配置 | 与 Keystore 配套使用 |
+| 3 | **Key Alias** | 密钥别名 | 未配置 | 与 Keystore 配套使用 |
+| 4 | **versionCode** | Android 版本号（整数） | `1` | 每次发布需递增 |
+| 5 | **versionName** | 应用版本名称 | `1.0.0` | 对应 Git tag v1.0.0 |
+
+### Android Release 签名配置步骤
+
+1. 生成 Keystore：
+   ```bash
+   keytool -genkey -v -keystore echo-key.jks -keyalg RSA -keysize 2048 -validity 10000 -alias echo
+   ```
+2. 放置到 `android/app/echo-key.jks`
+3. 创建 `android/key.properties`：
+   ```properties
+   storePassword=你的密码
+   keyPassword=你的密码
+   keyAlias=echo
+   storeFile=echo-key.jks
+   ```
+4. 修改 `android/app/build.gradle.kts` 的 `signingConfig`
 
 ---
 
