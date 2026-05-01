@@ -50,8 +50,11 @@ class UpdateService {
   /// 比较版本号，返回 true 表示需要更新
   static bool _shouldUpdate(String current, String latest) {
     try {
-      final currentParts = current.split('.').map(int.parse).toList();
-      final latestParts = latest.split('.').map(int.parse).toList();
+      // 去掉 +buildNumber 后缀
+      final currentClean = current.split('+').first;
+      final latestClean = latest.split('+').first;
+      final currentParts = currentClean.split('.').map(int.parse).toList();
+      final latestParts = latestClean.split('.').map(int.parse).toList();
 
       for (int i = 0; i < latestParts.length; i++) {
         final currentPart = i < currentParts.length ? currentParts[i] : 0;
