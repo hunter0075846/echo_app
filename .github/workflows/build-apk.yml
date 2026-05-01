@@ -56,58 +56,12 @@ jobs:
           }
           EOF
 
-      - name: Ensure server directory and Nginx route
-        uses: appleboy/ssh-action@v1.0.0
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_KEY }}
-          script: |
-            set -e
-            mkdir -p /var/www/app
-            chown -R $(whoami):$(whoami) /var/www/app || true
-
-            # 确保 Nginx /app 路由存在（幂等）
-            DOMAIN="api.wudiclaw.cloud"
-            NGINX_CONF=""
-            for dir in /etc/nginx/sites-enabled /etc/nginx/conf.d; do
-              if [ -d "$dir" ]; then
-                NGINX_CONF=$(grep -rl "server_name.*$DOMAIN" "$dir" 2>/dev/null | head -n1 || true)
-                if [ -n "$NGINX_CONF" ]; then break; fi
-              fi
-            done
-
-            if [ -n "$NGINX_CONF" ] && ! grep -q "location /app" "$NGINX_CONF"; then
-              awk '
-                { lines[NR] = $0 }
-                /^\s*}/ { last_close = NR }
-                END {
-                  for (i = 1; i <= NR; i++) {
-                    if (i == last_close) {
-                      print "    location /app {"
-                      print "        alias /var/www/app;"
-                      print "        add_header Content-Disposition \"attachment; filename=echo-latest.apk\";"
-                      print "        try_files $uri =404;"
-                      print "    }"
-                    }
-                    print lines[i]
-                  }
-                }
-              ' "$NGINX_CONF" > /tmp/nginx_tmp.conf
-              sudo mv /tmp/nginx_tmp.conf "$NGINX_CONF"
-              sudo nginx -t
-              sudo systemctl reload nginx
-              echo "Nginx /app 路由已添加"
-            else
-              echo "Nginx /app 路由已存在或未找到配置文件"
-            fi
-
-      - name: Upload APK and version info to server
+      - name: Upload APK and version info via SCP
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_KEY }}
-          source: "deploy/*"
-          target: "/var/www/app"
+          source: "deploy/echo-latest.apk,deploy/version.json"
+          target: "/var/www/app/"
           strip_components: 1
