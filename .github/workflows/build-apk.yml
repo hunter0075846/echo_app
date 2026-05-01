@@ -43,10 +43,18 @@ jobs:
       - name: Build APK
         run: flutter build apk --release
 
-      - name: Prepare APK
+      - name: Prepare APK and version info
         run: |
           mkdir -p deploy
           cp build/app/outputs/flutter-apk/app-release.apk deploy/echo-latest.apk
+          cat > deploy/version.json << EOF
+          {
+            "latestVersion": "${{ steps.version.outputs.version }}",
+            "minVersion": "${{ steps.version.outputs.version }}",
+            "downloadUrl": "https://api.wudiclaw.cloud/app/echo-latest.apk",
+            "releaseNotes": "修复已知问题，优化使用体验"
+          }
+          EOF
 
       - name: Ensure server directory and Nginx route
         uses: appleboy/ssh-action@v1.0.0
@@ -94,35 +102,12 @@ jobs:
               echo "Nginx /app 路由已存在或未找到配置文件"
             fi
 
-      - name: Upload APK to server
+      - name: Upload APK and version info to server
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_KEY }}
-          source: "deploy/echo-latest.apk"
+          source: "deploy/*"
           target: "/var/www/app"
           strip_components: 1
-
-      - name: Update backend version
-        uses: appleboy/ssh-action@v1.0.0
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_KEY }}
-          script: |
-            set -e
-            APP_DIR="/opt/echo-backend"
-            VERSION="${{ steps.version.outputs.version }}"
-
-            # 更新后端 .env 版本号
-            if [ -f "$APP_DIR/.env" ]; then
-              sed -i "s/NEXT_PUBLIC_APP_VERSION=.*/NEXT_PUBLIC_APP_VERSION=$VERSION/" "$APP_DIR/.env"
-              echo "已更新 NEXT_PUBLIC_APP_VERSION=$VERSION"
-            else
-              echo "警告: $APP_DIR/.env 不存在，跳过版本更新"
-            fi
-
-            # 重启后端以加载新环境变量
-            pm2 restart echo-backend --update-env || true
-            echo "APK 部署完成，版本: $VERSION"
