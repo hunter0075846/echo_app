@@ -5,7 +5,9 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'router/app_router.dart';
 import 'theme/app_theme.dart';
 import 'services/log_service.dart';
+import 'services/update_service.dart';
 import 'widgets/device_preview_wrapper.dart';
+import 'widgets/update_dialog.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,9 +25,18 @@ void main() async {
 class EchoApp extends ConsumerWidget {
   const EchoApp({super.key});
 
+  static bool _updateChecked = false;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
+
+    if (!_updateChecked) {
+      _updateChecked = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _checkUpdate(context);
+      });
+    }
 
     return ScreenUtilInit(
       designSize: const Size(375, 812),
@@ -48,5 +59,12 @@ class EchoApp extends ConsumerWidget {
         );
       },
     );
+  }
+
+  Future<void> _checkUpdate(BuildContext context) async {
+    final info = await UpdateService.checkUpdate();
+    if (info != null && context.mounted) {
+      await UpdateDialog.show(context, info);
+    }
   }
 }
