@@ -70,4 +70,18 @@
 
 ---
 
-**最后更新**: 2026-05-01
+## 链路 6：本地 iMac → GitHub
+
+| 属性 | 值 |
+|------|-----|
+| Key 名称 | `id_ed25519` |
+| Key 类型 | SSH Ed25519 密钥对 |
+| 公钥内容 | `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILOhhp33MfqIL44SLZNdzTWYCWoHzsiismTH5vOazTvr iMac2Github` |
+| 私钥 | 敏感，不展示 |
+| 存储位置 | `/Users/wing/.ssh/` |
+| 配置位置 | GitHub 账户 Settings → SSH and GPG keys |
+| 用途 | 本地 git push/pull 代码 |
+
+---
+
+**最后更新**: 2026-05-02
