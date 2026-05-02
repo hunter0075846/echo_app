@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import '../config/app_config.dart';
+import 'api_exception.dart';
 import 'log_service.dart';
 
 class ApiService {
@@ -10,6 +11,10 @@ class ApiService {
   static String get baseUrl => AppConfig.apiBaseUrl;
 
   String? _authToken;
+
+  /// 401 处理回调；由上层（AuthNotifier）注入，触发 logout + 跳登录页。
+  /// 用回调避免反向依赖。
+  void Function()? _onUnauthorized;
 
   // 单例模式
   static final ApiService _instance = ApiService._internal();
@@ -24,48 +29,47 @@ class ApiService {
         'Accept': 'application/json',
       },
       validateStatus: (status) {
-        // 只接受 200-299 状态码为成功
         return status != null && status >= 200 && status < 300;
       },
     ));
 
     _dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) {
-        // 记录网络请求日志
         logService.logNetworkRequest(
           options.method,
           '${options.baseUrl}${options.path}',
           headers: options.headers.cast<String, dynamic>(),
           body: options.data,
         );
-        
-        // 添加 JWT Token
+
         if (_authToken != null) {
           options.headers['Authorization'] = 'Bearer $_authToken';
         }
-        
+
         return handler.next(options);
       },
       onResponse: (response, handler) {
-        // 记录网络响应日志
         logService.logNetworkResponse(
           response.requestOptions.method,
           '${response.requestOptions.baseUrl}${response.requestOptions.path}',
           response.statusCode ?? 0,
           body: response.data,
         );
-        
+
         return handler.next(response);
       },
       onError: (error, handler) {
-        // 记录网络错误日志
         logService.logNetworkError(
           error.requestOptions.method,
           '${error.requestOptions.baseUrl}${error.requestOptions.path}',
           error.message,
           stackTrace: error.stackTrace,
         );
-        
+
+        if (error.response?.statusCode == 401) {
+          _onUnauthorized?.call();
+        }
+
         return handler.next(error);
       },
     ));
@@ -75,23 +79,31 @@ class ApiService {
     _authToken = token;
   }
 
-  Future<Response> get(String path, {Map<String, dynamic>? queryParameters}) async {
-    return await _dio.get(path, queryParameters: queryParameters);
+  /// 注册 401 处理回调（通常由 AuthNotifier 注入）
+  void setUnauthorizedHandler(void Function()? handler) {
+    _onUnauthorized = handler;
   }
 
-  Future<Response> post(String path, {dynamic data}) async {
-    return await _dio.post(path, data: data);
+  Future<Response> _safe(Future<Response> Function() call) async {
+    try {
+      return await call();
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
   }
 
-  Future<Response> put(String path, {dynamic data}) async {
-    return await _dio.put(path, data: data);
-  }
+  Future<Response> get(String path, {Map<String, dynamic>? queryParameters}) =>
+      _safe(() => _dio.get(path, queryParameters: queryParameters));
 
-  Future<Response> delete(String path) async {
-    return await _dio.delete(path);
-  }
+  Future<Response> post(String path, {dynamic data}) =>
+      _safe(() => _dio.post(path, data: data));
 
-  Future<Response> patch(String path, {dynamic data}) async {
-    return await _dio.patch(path, data: data);
-  }
+  Future<Response> put(String path, {dynamic data}) =>
+      _safe(() => _dio.put(path, data: data));
+
+  Future<Response> delete(String path) =>
+      _safe(() => _dio.delete(path));
+
+  Future<Response> patch(String path, {dynamic data}) =>
+      _safe(() => _dio.patch(path, data: data));
 }

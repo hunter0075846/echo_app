@@ -2,42 +2,43 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../providers/auth_provider.dart';
 import '../screens/auth/login_screen.dart';
-import '../screens/home/home_screen.dart';
-import '../screens/topic/topic_detail_screen.dart';
-import '../screens/topic/create_topic_screen.dart';
+import '../screens/group/ai_assistant_screen.dart';
 import '../screens/group/group_chat_screen.dart';
 import '../screens/group/memory_timeline_screen.dart';
-import '../screens/group/ai_assistant_screen.dart';
-import '../screens/profile/profile_screen.dart';
-import '../screens/profile/about_screen.dart';
-import '../screens/openclaw/openclaw_setup_screen.dart';
+import '../screens/home/home_screen.dart';
 import '../screens/openclaw/openclaw_chat_screen.dart';
-import '../providers/auth_provider.dart';
+import '../screens/openclaw/openclaw_setup_screen.dart';
+import '../screens/profile/about_screen.dart';
+import '../screens/profile/profile_screen.dart';
+import '../screens/topic/create_topic_screen.dart';
+import '../screens/topic/topic_detail_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
-  
+
   return GoRouter(
     initialLocation: '/',
     redirect: (context, state) {
-      // 安全地检查登录状态，处理错误情况
+      // 启动初始化未完成时，先不做跳转，让 splash/loading 占位
+      if (authState is AsyncLoading) return null;
+
       final isLoggedIn = authState.hasValue && authState.value != null;
       final isAuthRoute = state.matchedLocation == '/login';
-      
-      // 如果有错误且不在登录页，保持在当前页面（不跳转）
-      if (authState.hasError && !isAuthRoute) {
-        return null;
-      }
-      
+
       if (!isLoggedIn && !isAuthRoute) {
-        return '/login';
+        // 保留来源路径，登录成功后跳回去
+        final from = state.matchedLocation == '/'
+            ? null
+            : Uri.encodeComponent(state.uri.toString());
+        return from == null ? '/login' : '/login?from=$from';
       }
-      
+
       if (isLoggedIn && isAuthRoute) {
         return '/';
       }
-      
+
       return null;
     },
     routes: [
@@ -91,7 +92,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/about',
         builder: (context, state) => const AboutScreen(),
       ),
-      // OpenClaw 路由
       GoRoute(
         path: '/openclaw/setup',
         builder: (context, state) => const OpenClawSetupScreen(),

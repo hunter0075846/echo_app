@@ -1,144 +1,158 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/user_model.dart';
+import '../services/api_exception.dart';
 import '../services/auth_service.dart';
 
-class AuthState {
-  final UserModel? user;
-  final bool isLoading;
-  final String? error;
+class AuthErrorInfo {
+  final String message;
+  final int? statusCode;
+  final String? code;
 
-  const AuthState({
-    this.user,
-    this.isLoading = false,
-    this.error,
-  });
+  const AuthErrorInfo({required this.message, this.statusCode, this.code});
 
-  AuthState copyWith({
-    UserModel? user,
-    bool? isLoading,
-    String? error,
-  }) {
-    return AuthState(
-      user: user ?? this.user,
-      isLoading: isLoading ?? this.isLoading,
-      error: error ?? this.error,
-    );
-  }
+  bool get isPhoneTaken => statusCode == 409 || code == 'PHONE_TAKEN';
+  bool get isInvalidCredentials => statusCode == 401;
+  bool get isRateLimited => statusCode == 429;
 }
 
-/// 解析错误信息，返回友好的错误提示
-String parseAuthError(dynamic error, {required bool isRegister}) {
-  final errorMsg = error.toString();
-  
-  // 调试日志
-  print('🔍 parseAuthError: isRegister=$isRegister, error=$errorMsg');
-
-  if (isRegister) {
-    // 注册时的错误
-    if (errorMsg.contains('409')) {
-      print('✅ 检测到 409 错误：手机号已注册');
-      return '该手机号已注册，请直接登录';
-    } else if (errorMsg.contains('400')) {
-      return '请求参数错误，请检查输入';
-    } else if (errorMsg.contains('500')) {
-      return '服务器错误，请稍后重试';
-    } else if (errorMsg.contains('DioException') ||
-        errorMsg.contains('SocketException') ||
-        errorMsg.contains('XMLHttpRequest')) {
-      return '网络错误，请检查网络连接';
+String _friendlyAuthMessage(Object error, {required bool isRegister}) {
+  if (error is ApiException) {
+    if (error.isNetworkError) return error.message;
+    switch (error.statusCode) {
+      case 400:
+        return error.message;
+      case 401:
+        return '手机号或密码错误';
+      case 409:
+        return '该手机号已注册，请直接登录';
+      case 429:
+        return error.message;
+      default:
+        if (error.statusCode != null && error.statusCode! >= 500) {
+          return '服务器错误，请稍后重试';
+        }
+        return error.message;
     }
-    return '注册失败，请稍后重试';
-  } else {
-    // 登录时的错误
-    if (errorMsg.contains('401') || errorMsg.contains('400')) {
-      return '手机号或密码错误';
-    } else if (errorMsg.contains('500')) {
-      return '服务器错误，请稍后重试';
-    } else if (errorMsg.contains('DioException') ||
-        errorMsg.contains('SocketException') ||
-        errorMsg.contains('XMLHttpRequest')) {
-      return '网络错误，请检查网络连接';
-    }
-    return '登录失败，请稍后重试';
   }
+  return isRegister ? '注册失败，请稍后重试' : '登录失败，请稍后重试';
 }
 
 final authServiceProvider = Provider<AuthService>((ref) {
   return AuthService();
 });
 
-final authStateProvider = StateNotifierProvider<AuthNotifier, AsyncValue<UserModel?>>((ref) {
+final authStateProvider =
+    StateNotifierProvider<AuthNotifier, AsyncValue<UserModel?>>((ref) {
   final authService = ref.watch(authServiceProvider);
   return AuthNotifier(authService);
 });
 
 class AuthNotifier extends StateNotifier<AsyncValue<UserModel?>> {
   final AuthService _authService;
-  String? _lastError;
+  AuthErrorInfo? _lastErrorInfo;
 
   AuthNotifier(this._authService) : super(const AsyncValue.loading()) {
+    _authService.apiService.setUnauthorizedHandler(_handleUnauthorized);
     _init();
   }
 
-  /// 获取最后一次错误信息
-  String? get lastError => _lastError;
+  AuthErrorInfo? get lastErrorInfo => _lastErrorInfo;
+  String? get lastError => _lastErrorInfo?.message;
 
   Future<void> _init() async {
     try {
       final user = await _authService.getCurrentUser();
       state = AsyncValue.data(user);
-    } catch (e) {
-      state = const AsyncValue.data(null);
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
     }
   }
 
-  Future<void> register(String phone, String password) async {
+  void _handleUnauthorized() {
+    if (state.value == null) return;
+    _authService.logout();
+    _lastErrorInfo = null;
+    state = const AsyncValue.data(null);
+  }
+
+  Future<void> register(String phone, String password, {String? nickname}) async {
     state = const AsyncValue.loading();
-    _lastError = null;
+    _lastErrorInfo = null;
     try {
-      final user = await _authService.register(phone, password);
+      final user = await _authService.register(phone, password, nickname: nickname);
       state = AsyncValue.data(user);
+    } on ApiException catch (e, st) {
+      _lastErrorInfo = AuthErrorInfo(
+        message: _friendlyAuthMessage(e, isRegister: true),
+        statusCode: e.statusCode,
+        code: e.code,
+      );
+      state = AsyncValue.error(e, st);
     } catch (e, st) {
-      _lastError = parseAuthError(e, isRegister: true);
+      _lastErrorInfo = AuthErrorInfo(
+        message: _friendlyAuthMessage(e, isRegister: true),
+      );
       state = AsyncValue.error(e, st);
     }
   }
 
   Future<void> login(String phone, String password) async {
     state = const AsyncValue.loading();
-    _lastError = null;
+    _lastErrorInfo = null;
     try {
       final user = await _authService.login(phone, password);
       state = AsyncValue.data(user);
+    } on ApiException catch (e, st) {
+      _lastErrorInfo = AuthErrorInfo(
+        message: _friendlyAuthMessage(e, isRegister: false),
+        statusCode: e.statusCode,
+        code: e.code,
+      );
+      state = AsyncValue.error(e, st);
     } catch (e, st) {
-      _lastError = parseAuthError(e, isRegister: false);
+      _lastErrorInfo = AuthErrorInfo(
+        message: _friendlyAuthMessage(e, isRegister: false),
+      );
       state = AsyncValue.error(e, st);
     }
   }
 
   Future<void> logout() async {
     await _authService.logout();
-    _lastError = null;
+    _lastErrorInfo = null;
     state = const AsyncValue.data(null);
   }
 
-  Future<void> updateProfile({String? nickname, String? avatar}) async {
-    _lastError = null;
+  Future<void> updateProfile({
+    String? nickname,
+    String? avatar,
+    String? gender,
+    DateTime? birthday,
+  }) async {
+    _lastErrorInfo = null;
     try {
       final user = await _authService.updateProfile(
         nickname: nickname,
         avatar: avatar,
+        gender: gender,
+        birthday: birthday,
       );
       state = AsyncValue.data(user);
+    } on ApiException catch (e, st) {
+      _lastErrorInfo = AuthErrorInfo(
+        message: e.message,
+        statusCode: e.statusCode,
+        code: e.code,
+      );
+      state = AsyncValue.error(e, st);
     } catch (e, st) {
-      _lastError = '更新资料失败，请稍后重试';
+      _lastErrorInfo = const AuthErrorInfo(message: '更新资料失败，请稍后重试');
       state = AsyncValue.error(e, st);
     }
   }
 
-  /// 清除错误信息
   void clearError() {
-    _lastError = null;
+    _lastErrorInfo = null;
   }
 }
