@@ -37,7 +37,7 @@ class DevicePreviewWrapper extends StatelessWidget {
               borderRadius: BorderRadius.circular(40),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.3),
+                  color: Colors.black.withValues(alpha: 0.3),
                   blurRadius: 30,
                   spreadRadius: 5,
                   offset: const Offset(0, 10),
@@ -62,9 +62,9 @@ class DevicePreviewWrapper extends StatelessWidget {
                         child: Container(
                           width: 150,
                           height: 30,
-                          decoration: BoxDecoration(
+                          decoration: const BoxDecoration(
                             color: Colors.black,
-                            borderRadius: const BorderRadius.only(
+                            borderRadius: BorderRadius.only(
                               bottomLeft: Radius.circular(18),
                               bottomRight: Radius.circular(18),
                             ),
@@ -94,7 +94,7 @@ class DevicePreviewWrapper extends StatelessWidget {
                           width: 134,
                           height: 5,
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.3),
+                            color: Colors.white.withValues(alpha: 0.3),
                             borderRadius: BorderRadius.circular(3),
                           ),
                         ),

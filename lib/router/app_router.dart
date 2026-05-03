@@ -15,10 +15,15 @@ import '../screens/profile/profile_screen.dart';
 import '../screens/topic/create_topic_screen.dart';
 import '../screens/topic/topic_detail_screen.dart';
 
+final _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
+
+GlobalKey<NavigatorState> get rootNavigatorKey => _rootNavigatorKey;
+
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
 
   return GoRouter(
+    navigatorKey: _rootNavigatorKey,
     initialLocation: '/',
     redirect: (context, state) {
       // 启动初始化未完成时，先不做跳转，让 splash/loading 占位

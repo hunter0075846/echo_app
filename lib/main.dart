@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -33,17 +34,11 @@ class EchoApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
 
-    if (!_updateChecked) {
-      _updateChecked = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _checkUpdate(context);
-      });
-    }
-
-    return ScreenUtilInit(
+    Widget app = ScreenUtilInit(
       designSize: const Size(375, 812),
       minTextAdapt: true,
       splitScreenMode: true,
+      useInheritedMediaQuery: true,
       builder: (context, child) {
         return MaterialApp.router(
           title: '回响',
@@ -53,6 +48,15 @@ class EchoApp extends ConsumerWidget {
           themeMode: ThemeMode.light,
           routerConfig: router,
           builder: (context, child) {
+            if (!_updateChecked) {
+              _updateChecked = true;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                final navContext = rootNavigatorKey.currentContext;
+                if (navContext != null && navContext.mounted) {
+                  _checkUpdate(navContext);
+                }
+              });
+            }
             return DevicePreviewWrapper(
               child: child!,
             );
@@ -60,6 +64,16 @@ class EchoApp extends ConsumerWidget {
         );
       },
     );
+
+    // Web端固定MediaQuery尺寸为设计稿尺寸，避免浏览器窗口影响ScreenUtil计算
+    if (kIsWeb) {
+      app = MediaQuery(
+        data: const MediaQueryData(size: Size(375, 812)),
+        child: app,
+      );
+    }
+
+    return app;
   }
 
   Future<void> _checkUpdate(BuildContext context) async {
