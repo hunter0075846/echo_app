@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../services/app_service.dart';
 import '../../theme/app_theme.dart';
 
 class AboutScreen extends StatefulWidget {
@@ -14,19 +15,49 @@ class AboutScreen extends StatefulWidget {
 
 class _AboutScreenState extends State<AboutScreen> {
   String _version = '';
+  bool _isCheckingUpdate = false;
+  bool? _hasNewVersion;
+  String _latestVersion = '';
+  String _downloadUrl = '';
+  String _updateError = '';
 
   @override
   void initState() {
     super.initState();
-    _loadVersion();
+    _loadVersionAndCheckUpdate();
   }
 
-  Future<void> _loadVersion() async {
+  Future<void> _loadVersionAndCheckUpdate() async {
     final packageInfo = await PackageInfo.fromPlatform();
     if (mounted) {
       setState(() {
         _version = packageInfo.version;
+        _isCheckingUpdate = true;
       });
+    }
+
+    try {
+      final versionInfo = await AppService().checkUpdate();
+      final currentVersion = packageInfo.version;
+      final hasNew = AppService.hasNewVersion(currentVersion, versionInfo.latestVersion);
+
+      if (mounted) {
+        setState(() {
+          _isCheckingUpdate = false;
+          _hasNewVersion = hasNew;
+          _latestVersion = versionInfo.latestVersion;
+          _downloadUrl = versionInfo.downloadUrl;
+          _updateError = '';
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isCheckingUpdate = false;
+          _hasNewVersion = null;
+          _updateError = e.toString();
+        });
+      }
     }
   }
 
@@ -65,12 +96,14 @@ class _AboutScreenState extends State<AboutScreen> {
             ),
             SizedBox(height: 8.h),
             Text(
-              _version.isEmpty ? '版本加载中...' : '版本 $_version',
+              _version.isEmpty ? '' : '版本 $_version',
               style: TextStyle(
                 fontSize: 14.sp,
                 color: AppTheme.textSecondaryColor,
               ),
             ),
+            SizedBox(height: 12.h),
+            if (!_isCheckingUpdate) _buildUpdateStatus(),
             SizedBox(height: 32.h),
             // 功能介绍
             Card(
@@ -145,6 +178,72 @@ class _AboutScreenState extends State<AboutScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildUpdateStatus() {
+    if (_updateError.isNotEmpty) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline, size: 16.w, color: AppTheme.textTertiaryColor),
+          SizedBox(width: 4.w),
+          Text(
+            '检查更新失败',
+            style: TextStyle(fontSize: 13.sp, color: AppTheme.textTertiaryColor),
+          ),
+          SizedBox(width: 8.w),
+          TextButton(
+            onPressed: _loadVersionAndCheckUpdate,
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.zero,
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text('重试', style: TextStyle(fontSize: 13.sp)),
+          ),
+        ],
+      );
+    }
+
+    if (_hasNewVersion == true) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.system_update, size: 16.w, color: AppTheme.errorColor),
+          SizedBox(width: 4.w),
+          Text(
+            '发现新版本 $_latestVersion',
+            style: TextStyle(fontSize: 13.sp, color: AppTheme.errorColor),
+          ),
+          SizedBox(width: 8.w),
+          TextButton(
+            onPressed: () => _launchUrl(_downloadUrl),
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.zero,
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text('立即更新', style: TextStyle(fontSize: 13.sp)),
+          ),
+        ],
+      );
+    }
+
+    if (_hasNewVersion == false) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.check_circle, size: 16.w, color: Colors.green),
+          SizedBox(width: 4.w),
+          Text(
+            '已是最新版本',
+            style: TextStyle(fontSize: 13.sp, color: Colors.green),
+          ),
+        ],
+      );
+    }
+
+    return const SizedBox.shrink();
   }
 
   Widget _buildFeatureItem({
