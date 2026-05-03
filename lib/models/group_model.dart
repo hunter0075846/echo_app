@@ -143,6 +143,7 @@ class GroupMessageModel {
   final String type;
   final String content;
   final String? mediaUrl;
+  final Map<String, dynamic>? metadata;
   final bool isAnonymous;
   final bool isDeleted;
   final DateTime? createdAt;
@@ -156,6 +157,7 @@ class GroupMessageModel {
     required this.type,
     required this.content,
     this.mediaUrl,
+    this.metadata,
     this.isAnonymous = false,
     this.isDeleted = false,
     this.createdAt,
@@ -171,6 +173,7 @@ class GroupMessageModel {
       type: json['type'] as String,
       content: json['content'] as String,
       mediaUrl: json['mediaUrl'] as String?,
+      metadata: json['metadata'] as Map<String, dynamic>?,
       isAnonymous: json['isAnonymous'] as bool? ?? false,
       isDeleted: json['isDeleted'] as bool? ?? false,
       createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt'] as String) : null,
@@ -187,6 +190,7 @@ class GroupMessageModel {
       'type': type,
       'content': content,
       'mediaUrl': mediaUrl,
+      'metadata': metadata,
       'isAnonymous': isAnonymous,
       'isDeleted': isDeleted,
       'createdAt': createdAt?.toIso8601String(),
@@ -202,6 +206,7 @@ class GroupMessageModel {
     String? type,
     String? content,
     String? mediaUrl,
+    Map<String, dynamic>? metadata,
     bool? isAnonymous,
     bool? isDeleted,
     DateTime? createdAt,
@@ -215,6 +220,7 @@ class GroupMessageModel {
       type: type ?? this.type,
       content: content ?? this.content,
       mediaUrl: mediaUrl ?? this.mediaUrl,
+      metadata: metadata ?? this.metadata,
       isAnonymous: isAnonymous ?? this.isAnonymous,
       isDeleted: isDeleted ?? this.isDeleted,
       createdAt: createdAt ?? this.createdAt,

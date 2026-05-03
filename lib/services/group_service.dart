@@ -85,15 +85,36 @@ class GroupService {
     await _api.delete('/groups/$groupId');
   }
 
-  // 转发话题到群聊
+  // 转发话题到群聊（以 topic_card 类型发送）
   Future<void> forwardTopic({
     required String groupId,
     required String topicId,
     String? guideText,
   }) async {
-    await _api.post('/groups/$groupId/forward', data: {
-      'topicId': topicId,
-      if (guideText != null) 'guideText': guideText,
+    await _api.post('/groups/$groupId/messages', data: {
+      'content': guideText ?? '转发了一个话题',
+      'type': 'topic_card',
+      'metadata': {
+        'topicId': topicId,
+        if (guideText != null) 'guideText': guideText,
+      },
+    });
+  }
+
+  // 转发小安回复到群聊（以 agent_quote 类型发送）
+  Future<void> forwardAssistantMessage({
+    required String groupId,
+    required String content,
+    String? sourceMessageId,
+    String? prompt,
+  }) async {
+    await _api.post('/groups/$groupId/messages', data: {
+      'content': content,
+      'type': 'agent_quote',
+      'metadata': {
+        if (sourceMessageId != null) 'sourceId': sourceMessageId,
+        if (prompt != null) 'prompt': prompt,
+      },
     });
   }
 }

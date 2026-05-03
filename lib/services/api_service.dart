@@ -75,6 +75,8 @@ class ApiService {
     ));
   }
 
+  Dio get dio => _dio;
+
   void setAuthToken(String? token) {
     _authToken = token;
   }

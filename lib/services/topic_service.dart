@@ -1,5 +1,6 @@
 import '../models/topic_model.dart';
 import 'api_service.dart';
+import 'group_service.dart';
 
 class TopicListResult {
   final List<TopicModel> topics;
@@ -102,15 +103,17 @@ class TopicService {
     await _api.delete('/topics/$topicId');
   }
 
-  // 转发话题到群
+  // 转发话题到群（委托 group_service 避免重复实现）
   Future<void> forwardToGroup({
     required String topicId,
     required String groupId,
     String? guideText,
   }) async {
-    await _api.post('/topics/$topicId/forward', data: {
-      'groupId': groupId,
-      if (guideText != null) 'guideText': guideText,
-    });
+    final groupService = GroupService();
+    await groupService.forwardTopic(
+      groupId: groupId,
+      topicId: topicId,
+      guideText: guideText,
+    );
   }
 }

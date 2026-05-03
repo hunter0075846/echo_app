@@ -521,17 +521,7 @@ class _ChatMessage extends StatelessWidget {
                           ),
                       ],
                     ),
-                    child: Text(
-                      message.content,
-                      style: TextStyle(
-                        fontSize: 14.sp,
-                        color: isMe
-                            ? Colors.white
-                            : message.isAnonymous
-                                ? AppTheme.anonymousColor
-                                : AppTheme.textPrimaryColor,
-                      ),
-                    ),
+                    child: _buildMessageContent(context),
                   ),
                 ],
               ),
@@ -605,6 +595,78 @@ class _ChatMessage extends StatelessWidget {
 
     // 默认头像
     return _buildDefaultAvatar();
+  }
+
+  // 构建消息内容
+  Widget _buildMessageContent(BuildContext context) {
+    switch (message.type) {
+      case 'agent_quote':
+        return _buildAgentQuoteCard(context);
+      default:
+        return Text(
+          message.content,
+          style: TextStyle(
+            fontSize: 14.sp,
+            color: isMe
+                ? Colors.white
+                : message.isAnonymous
+                    ? AppTheme.anonymousColor
+                    : AppTheme.textPrimaryColor,
+          ),
+        );
+    }
+  }
+
+  // 小安转发卡片
+  Widget _buildAgentQuoteCard(BuildContext context) {
+    final metadata = message.metadata;
+    final sourceId = metadata != null ? metadata['sourceId'] as String? : null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.smart_toy, size: 14.w, color: AppTheme.primaryColor),
+            SizedBox(width: 4.w),
+            Text(
+              '转发自小安',
+              style: TextStyle(
+                fontSize: 12.sp,
+                color: AppTheme.primaryColor,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: 6.h),
+        Text(
+          message.content,
+          style: TextStyle(
+            fontSize: 14.sp,
+            color: AppTheme.textPrimaryColor,
+          ),
+        ),
+        if (sourceId != null) ...[
+          SizedBox(height: 6.h),
+          GestureDetector(
+            onTap: () {
+              // 跳转到小安页，高亮 sourceId 消息
+              // TODO: 高亮定位（v1.1）
+              context.push('/ai-assistant');
+            },
+            child: Text(
+              '查看原对话',
+              style: TextStyle(
+                fontSize: 12.sp,
+                color: AppTheme.primaryColor,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
   }
 
   // 构建默认头像

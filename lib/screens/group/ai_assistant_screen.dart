@@ -2,24 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
-import '../../services/ai_assistant_service.dart';
-import '../../services/api_service.dart';
+import '../../providers/assistant_chat_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/chat_bubble.dart';
+import '../../widgets/forward_to_group_dialog.dart';
 
-/// AI助手小安服务Provider
-final aiAssistantServiceProvider = Provider<AiAssistantService>((ref) {
-  final api = ApiService();
-  return AiAssistantService(api);
-});
-
-/// AI助手小安对话页面
 class AiAssistantScreen extends ConsumerStatefulWidget {
   final String? groupId;
 
-  const AiAssistantScreen({
-    super.key,
-    this.groupId,
-  });
+  const AiAssistantScreen({super.key, this.groupId});
 
   @override
   ConsumerState<AiAssistantScreen> createState() => _AiAssistantScreenState();
@@ -28,90 +19,39 @@ class AiAssistantScreen extends ConsumerStatefulWidget {
 class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  final List<ChatMessage> _messages = [];
-  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    // 添加欢迎消息
-    final welcomeContent = widget.groupId != null
-        ? '你好！我是小安，你的群聊AI助手。\n\n我可以帮你：\n• 推荐热门话题\n• 分析群聊氛围\n• 生成回忆总结\n• 回答关于群聊的问题\n\n有什么我可以帮你的吗？'
-        : '你好！我是小安，你的AI助手。\n\n我可以帮你：\n• 推荐热门话题\n• 分析群聊氛围\n• 生成回忆总结\n• 回答关于群聊的问题\n\n有什么我可以帮你的吗？';
-    _messages.add(
-      ChatMessage(
-        content: welcomeContent,
-        isUser: false,
-        timestamp: DateTime.now(),
-        isWelcome: true,
-      ),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(assistantChatNotifierProvider(widget.groupId).notifier).loadInitial();
+    });
+    _scrollController.addListener(_onScroll);
   }
 
   @override
   void dispose() {
     _messageController.dispose();
+    _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.atEdge &&
+        _scrollController.position.pixels == 0) {
+      ref.read(assistantChatNotifierProvider(widget.groupId).notifier).loadMore();
+    }
   }
 
   Future<void> _sendMessage() async {
     final content = _messageController.text.trim();
     if (content.isEmpty) return;
 
-    setState(() {
-      _messages.add(ChatMessage(
-        content: content,
-        isUser: true,
-        timestamp: DateTime.now(),
-      ));
-      _isLoading = true;
-    });
-
     _messageController.clear();
-    _scrollToBottom();
+    FocusScope.of(context).unfocus();
 
-    try {
-      // 构建对话历史
-      final history = _messages
-          .where((m) => m.isUser || !m.isWelcome) // 排除欢迎消息
-          .map((m) => {
-                'role': m.isUser ? 'user' : 'assistant',
-                'content': m.content,
-              })
-          .toList();
-
-      // 调用小安API
-      final aiService = ref.read(aiAssistantServiceProvider);
-      final reply = await aiService.chat(
-        message: content,
-        groupId: widget.groupId,
-        history: history,
-      );
-
-      if (mounted) {
-        setState(() {
-          _messages.add(ChatMessage(
-            content: reply,
-            isUser: false,
-            timestamp: DateTime.now(),
-          ));
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _messages.add(ChatMessage(
-            content: '抱歉，我遇到了一些问题：$e\n\n请稍后再试~',
-            isUser: false,
-            timestamp: DateTime.now(),
-          ));
-          _isLoading = false;
-        });
-      }
-    }
-
+    await ref.read(assistantChatNotifierProvider(widget.groupId).notifier).send(content);
     _scrollToBottom();
   }
 
@@ -127,9 +67,23 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
     });
   }
 
+  void _showForwardDialog(String content, String? sourceMessageId) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => ForwardToGroupDialog(
+        content: content,
+        sourceMessageId: sourceMessageId,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final chatState = ref.watch(assistantChatNotifierProvider(widget.groupId));
+
     return Scaffold(
+      backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
         title: Row(
           children: [
@@ -156,10 +110,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  '小安',
-                  style: TextStyle(fontSize: 16.sp),
-                ),
+                Text('小安', style: TextStyle(fontSize: 16.sp)),
                 Text(
                   'AI助手',
                   style: TextStyle(
@@ -172,186 +123,121 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
             ),
           ],
         ),
+        actions: [
+          if (chatState.isLoadingMore)
+            Padding(
+              padding: EdgeInsets.only(right: 16.w),
+              child: SizedBox(
+                width: 16.w,
+                height: 16.w,
+                child: const CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+        ],
       ),
       body: Column(
         children: [
-          // 消息列表
-          Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: EdgeInsets.all(16.w),
-              itemCount: _messages.length,
-              itemBuilder: (context, index) {
-                final message = _messages[index];
-                return _ChatBubble(message: message);
-              },
-            ),
-          ),
-
-          // 加载指示器
-          if (_isLoading)
-            Padding(
-              padding: EdgeInsets.all(8.w),
+          // 错误 Banner
+          if (chatState.errorMessage != null)
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
+              color: AppTheme.errorColor.withValues(alpha: 0.1),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  SizedBox(
-                    width: 16.w,
-                    height: 16.w,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
+                  Icon(Icons.error_outline, size: 18.w, color: AppTheme.errorColor),
                   SizedBox(width: 8.w),
-                  Text(
-                    '小安正在思考...',
-                    style: TextStyle(
-                      fontSize: 12.sp,
-                      color: AppTheme.textSecondaryColor,
+                  Expanded(
+                    child: Text(
+                      chatState.errorMessage!,
+                      style: TextStyle(fontSize: 13.sp, color: AppTheme.errorColor),
                     ),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.close, size: 18.w, color: AppTheme.errorColor),
+                    onPressed: () => ref
+                        .read(assistantChatNotifierProvider(widget.groupId).notifier)
+                        .clearError(),
                   ),
                 ],
               ),
             ),
 
-          // 输入框
+          // 消息列表
+          Expanded(
+            child: ListView.builder(
+              controller: _scrollController,
+              padding: EdgeInsets.all(16.w),
+              itemCount: chatState.messages.length,
+              itemBuilder: (context, index) {
+                final message = chatState.messages[index];
+                final isLast = index == chatState.messages.length - 1;
+                final isStreaming = isLast &&
+                    message.role == 'assistant' &&
+                    chatState.isStreaming;
+
+                return ChatBubble(
+                  message: message,
+                  isStreaming: isStreaming,
+                  onRetry: message.status == MessageStatus.failed
+                      ? () => ref
+                          .read(assistantChatNotifierProvider(widget.groupId).notifier)
+                          .retry(message.id)
+                      : null,
+                  onForward: message.role == 'assistant' && !message.isWelcome
+                      ? () => _showForwardDialog(message.content, message.id)
+                      : null,
+                );
+              },
+            ),
+          ),
+
+          // 输入区
           Container(
-            padding: EdgeInsets.all(12.w),
+            padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
             decoration: BoxDecoration(
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 10,
                   offset: const Offset(0, -5),
                 ),
               ],
             ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    decoration: InputDecoration(
-                      hintText: '给小安发消息...',
-                      filled: true,
-                      fillColor: AppTheme.backgroundColor,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(20.r),
-                        borderSide: BorderSide.none,
+            child: SafeArea(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _messageController,
+                      enabled: !chatState.isStreaming,
+                      decoration: InputDecoration(
+                        hintText: chatState.isStreaming ? '小安正在回复...' : '给小安发消息...',
+                        filled: true,
+                        fillColor: AppTheme.backgroundColor,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(20.r),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 16.w,
+                          vertical: 10.h,
+                        ),
                       ),
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 16.w,
-                        vertical: 10.h,
-                      ),
+                      onSubmitted: (_) => _sendMessage(),
                     ),
-                    onSubmitted: (_) => _sendMessage(),
                   ),
-                ),
-                SizedBox(width: 8.w),
-                IconButton(
-                  icon: const Icon(Icons.send),
-                  onPressed: _sendMessage,
-                ),
-              ],
+                  SizedBox(width: 8.w),
+                  IconButton(
+                    icon: const Icon(Icons.send),
+                    onPressed: chatState.isStreaming ? null : _sendMessage,
+                  ),
+                ],
+              ),
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// 聊天消息模型
-class ChatMessage {
-  final String content;
-  final bool isUser;
-  final DateTime timestamp;
-  final bool isWelcome;
-
-  ChatMessage({
-    required this.content,
-    required this.isUser,
-    required this.timestamp,
-    this.isWelcome = false,
-  });
-}
-
-/// 聊天气泡组件
-class _ChatBubble extends StatelessWidget {
-  final ChatMessage message;
-
-  const _ChatBubble({
-    required this.message,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Align(
-      alignment: message.isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: EdgeInsets.only(
-          bottom: 16.h,
-          left: message.isUser ? 64.w : 0,
-          right: message.isUser ? 0 : 64.w,
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // AI头像
-            if (!message.isUser) ...[
-              Container(
-                width: 36.w,
-                height: 36.w,
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryColor,
-                  shape: BoxShape.circle,
-                ),
-                child: Center(
-                  child: Text(
-                    '安',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16.sp,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(width: 8.w),
-            ],
-
-            // 消息内容
-            Flexible(
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
-                decoration: BoxDecoration(
-                  color: message.isUser
-                      ? AppTheme.primaryColor
-                      : Colors.white,
-                  borderRadius: BorderRadius.circular(16.r),
-                  boxShadow: [
-                    if (!message.isUser)
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                  ],
-                ),
-                child: Text(
-                  message.content,
-                  style: TextStyle(
-                    fontSize: 14.sp,
-                    color: message.isUser
-                        ? Colors.white
-                        : AppTheme.textPrimaryColor,
-                    height: 1.5,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
