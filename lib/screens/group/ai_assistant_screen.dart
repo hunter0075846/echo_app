@@ -57,18 +57,21 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
 
   void _scrollToBottom({bool animate = true}) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Future.delayed(const Duration(milliseconds: 100), () {
+      if (!_scrollController.hasClients) return;
+      final maxExtent = _scrollController.position.maxScrollExtent;
+      if (animate) {
+        _scrollController.animateTo(
+          maxExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      } else {
+        _scrollController.jumpTo(maxExtent);
+      }
+      // 再等一帧：懒加载的 item 构建后 maxScrollExtent 可能增大，再确认一次
+      WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!_scrollController.hasClients) return;
-        final maxExtent = _scrollController.position.maxScrollExtent;
-        if (animate) {
-          _scrollController.animateTo(
-            maxExtent,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOut,
-          );
-        } else {
-          _scrollController.jumpTo(maxExtent);
-        }
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
       });
     });
   }
