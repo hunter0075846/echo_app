@@ -40,6 +40,10 @@ class LogService {
   // 日志文件路径
   String? _logFilePath;
 
+  // 写入队列（串行化文件写入，防止并发交错）
+  final List<LogEntry> _pendingWrites = [];
+  bool _isWriting = false;
+
   /// 初始化日志服务
   Future<void> initialize() async {
     if (_enableFileStorage) {
@@ -49,22 +53,33 @@ class LogService {
     _logSystem('LogService initialized');
   }
 
-  /// 从文件加载历史日志
+  /// 从文件加载历史日志（自动清理损坏行）
   Future<void> _loadLogsFromFile() async {
     if (_logFilePath == null) return;
 
     try {
       final lines = await readLogsFromFile(_logFilePath!);
+      final validLines = <String>[];
+      int badCount = 0;
+
       for (final line in lines) {
         if (line.trim().isEmpty) continue;
         try {
           final json = jsonDecode(line) as Map<String, dynamic>;
           final entry = LogEntry.fromJson(json);
           _logs.add(entry);
-        } catch (e) {
-          debugPrint('❌ Failed to parse log line: $e');
+          validLines.add(line);
+        } catch (_) {
+          badCount++;
         }
       }
+
+      if (badCount > 0) {
+        debugPrint('⚠️ Skipped $badCount corrupted log lines');
+        // 重写文件，剔除损坏行
+        await _rewriteLogFile(validLines);
+      }
+
       // 限制内存日志数量
       if (_logs.length > _maxMemoryLogs) {
         _logs.removeRange(0, _logs.length - _maxMemoryLogs);
@@ -73,6 +88,24 @@ class LogService {
       debugPrint('📁 Loaded ${_logs.length} logs from storage');
     } catch (e) {
       debugPrint('❌ Failed to load logs from storage: $e');
+    }
+  }
+
+  /// 用有效行重写日志文件（清理损坏内容）
+  Future<void> _rewriteLogFile(List<String> validLines) async {
+    if (_logFilePath == null) return;
+    try {
+      final file = File(_logFilePath!);
+      if (validLines.isEmpty) {
+        await file.writeAsString('', flush: true);
+      } else {
+        await file.writeAsString(
+          '${validLines.join('\n')}\n',
+          flush: true,
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Failed to rewrite log file: $e');
     }
   }
 
@@ -284,16 +317,29 @@ class LogService {
     _printToConsole(entry);
   }
 
-  /// 写入文件
-  Future<void> _writeToFile(LogEntry entry) async {
-    if (_logFilePath == null) return;
+  /// 写入文件（通过队列串行化）
+  void _writeToFile(LogEntry entry) {
+    _pendingWrites.add(entry);
+    _processWriteQueue();
+  }
 
-    try {
-      final line = '${jsonEncode(entry.toJson())}\n';
-      await writeLogToFile(_logFilePath!, line);
-    } catch (e) {
-      debugPrint('❌ Failed to write log to storage: $e');
+  /// 串行处理写入队列
+  Future<void> _processWriteQueue() async {
+    if (_isWriting || _pendingWrites.isEmpty) return;
+    _isWriting = true;
+
+    while (_pendingWrites.isNotEmpty) {
+      final entry = _pendingWrites.removeAt(0);
+      if (_logFilePath == null) continue;
+      try {
+        final line = '${jsonEncode(entry.toJson())}\n';
+        await writeLogToFile(_logFilePath!, line);
+      } catch (e) {
+        debugPrint('❌ Failed to write log to storage: $e');
+      }
     }
+
+    _isWriting = false;
   }
 
   /// 输出到控制台

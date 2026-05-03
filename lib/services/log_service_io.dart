@@ -11,7 +11,7 @@ Future<String?> getLogDirectoryPath() async {
 /// 写入日志到文件
 Future<void> writeLogToFile(String filePath, String content) async {
   final file = File(filePath);
-  await file.writeAsString(content, mode: FileMode.append);
+  await file.writeAsString(content, mode: FileMode.append, flush: true);
 }
 
 /// 从文件读取日志
