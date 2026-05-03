@@ -55,15 +55,21 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
     _scrollToBottom();
   }
 
-  void _scrollToBottom() {
+  void _scrollToBottom({bool animate = true}) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (!_scrollController.hasClients) return;
+        final maxExtent = _scrollController.position.maxScrollExtent;
+        if (animate) {
+          _scrollController.animateTo(
+            maxExtent,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        } else {
+          _scrollController.jumpTo(maxExtent);
+        }
+      });
     });
   }
 
@@ -83,6 +89,13 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
     // 监听消息变化，自动滚动到底部
     ref.listen(assistantChatNotifierProvider(widget.groupId), (previous, next) {
       if (previous == null) return;
+
+      // 加载完成（首次进入或加载更多结束）→ 直接跳到底部
+      if (previous.isLoadingMore && !next.isLoadingMore) {
+        _scrollToBottom(animate: false);
+        return;
+      }
+
       if (next.isLoadingMore) return; // 加载历史中不自动滚动
 
       final shouldScroll = previous.messages.length != next.messages.length ||
@@ -92,7 +105,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
               previous.messages.last.content != next.messages.last.content);
 
       if (shouldScroll) {
-        _scrollToBottom();
+        _scrollToBottom(animate: true);
       }
     });
 
