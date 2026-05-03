@@ -193,6 +193,9 @@ class AssistantChatNotifier extends StateNotifier<AssistantChatState> {
   Future<void> send(String content) async {
     if (state.isStreaming) return;
 
+    // 过滤掉 welcome，保留真实历史
+    final currentMessages = state.messages.where((m) => !m.isWelcome).toList();
+
     // 乐观插入用户消息
     final userMsg = ChatMessage(
       id: 'pending_${DateTime.now().millisecondsSinceEpoch}',
@@ -212,37 +215,7 @@ class AssistantChatNotifier extends StateNotifier<AssistantChatState> {
     );
 
     state = state.copyWith(
-      messages: [...state.messages, userMsg, assistantMsg],
-      isStreaming: true,
-      error: null,
-    );
-
-    // 如果之前只有 welcome，移除
-    final filtered = state.messages.where((m) => !m.isWelcome).toList();
-    if (filtered.length != state.messages.length) {
-      state = state.copyWith(messages: filtered);
-    }
-
-    // 重新插入（已在上面的 copyWith 中完成）
-    // 重新构造状态确保顺序
-    final currentMessages = state.messages.where((m) => !m.isWelcome).toList();
-    final newUserMsg = ChatMessage(
-      id: 'pending_${DateTime.now().millisecondsSinceEpoch}',
-      role: 'user',
-      content: content,
-      groupId: _groupId,
-      status: MessageStatus.sending,
-    );
-    final newAssistantMsg = ChatMessage(
-      id: 'streaming_${DateTime.now().millisecondsSinceEpoch}_2',
-      role: 'assistant',
-      content: '',
-      groupId: _groupId,
-      status: MessageStatus.sending,
-    );
-
-    state = state.copyWith(
-      messages: [...currentMessages, newUserMsg, newAssistantMsg],
+      messages: [...currentMessages, userMsg, assistantMsg],
       isStreaming: true,
       error: null,
     );
