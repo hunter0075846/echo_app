@@ -91,27 +91,39 @@ class ChatBubble extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        message.content.isEmpty && isStreaming && !message.isUser
-                            ? '...'
-                            : message.content,
-                        style: TextStyle(
-                          fontSize: 14.sp,
-                          color: message.isUser
-                              ? Colors.white
-                              : AppTheme.textPrimaryColor,
-                          height: 1.5,
-                        ),
-                      ),
-                      if (isStreaming &&
-                          !message.isUser &&
-                          message.status != MessageStatus.failed)
+                      if (message.content.isEmpty &&
+                          isStreaming &&
+                          !message.isUser)
                         Text(
-                          '▍',
+                          '小安正在回复...',
                           style: TextStyle(
                             fontSize: 14.sp,
                             color: AppTheme.textSecondaryColor,
+                            height: 1.5,
                           ),
+                        )
+                      else
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                message.content,
+                                style: TextStyle(
+                                  fontSize: 14.sp,
+                                  color: message.isUser
+                                      ? Colors.white
+                                      : AppTheme.textPrimaryColor,
+                                  height: 1.5,
+                                ),
+                              ),
+                            ),
+                            if (isStreaming &&
+                                !message.isUser &&
+                                message.status != MessageStatus.failed)
+                              const _BlinkingCursor(),
+                          ],
                         ),
                     ],
                   ),
@@ -168,6 +180,48 @@ class ChatBubble extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// 闪烁光标（1.0 → 0.3 → 1.0，周期 600ms）
+class _BlinkingCursor extends StatefulWidget {
+  const _BlinkingCursor();
+
+  @override
+  State<_BlinkingCursor> createState() => _BlinkingCursorState();
+}
+
+class _BlinkingCursorState extends State<_BlinkingCursor> {
+  bool _visible = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _startBlinking();
+  }
+
+  void _startBlinking() {
+    Future.delayed(const Duration(milliseconds: 600), () {
+      if (mounted) {
+        setState(() => _visible = !_visible);
+        _startBlinking();
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedOpacity(
+      opacity: _visible ? 1.0 : 0.3,
+      duration: const Duration(milliseconds: 300),
+      child: Text(
+        '▍',
+        style: TextStyle(
+          fontSize: 14.sp,
+          color: AppTheme.textSecondaryColor,
+        ),
+      ),
     );
   }
 }
