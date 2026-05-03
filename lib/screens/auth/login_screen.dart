@@ -319,6 +319,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   // 字段错误（如 401 凭证错）已经通过表单 validator 显示，不重复 banner；
   // 仅在网络错误、限流、服务端错误等"非字段级"错误时显示顶部 banner。
   bool _shouldShowBanner(AuthErrorInfo info) {
+    if (info.isPhoneTaken) return true; // 409：注册命中已存在号，需提示用户切到登录
     if (info.isInvalidCredentials) return true; // 401 没有 inline 字段，需要 banner
     if (info.isRateLimited) return true;
     if (info.statusCode == null) return true; // 网络错误
