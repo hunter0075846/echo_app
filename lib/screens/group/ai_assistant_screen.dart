@@ -80,6 +80,22 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 监听消息变化，自动滚动到底部
+    ref.listen(assistantChatNotifierProvider(widget.groupId), (previous, next) {
+      if (previous == null) return;
+      if (next.isLoadingMore) return; // 加载历史中不自动滚动
+
+      final shouldScroll = previous.messages.length != next.messages.length ||
+          (next.isStreaming &&
+              next.messages.isNotEmpty &&
+              previous.messages.isNotEmpty &&
+              previous.messages.last.content != next.messages.last.content);
+
+      if (shouldScroll) {
+        _scrollToBottom();
+      }
+    });
+
     final chatState = ref.watch(assistantChatNotifierProvider(widget.groupId));
 
     return Scaffold(
