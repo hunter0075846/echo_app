@@ -84,4 +84,22 @@
 
 ---
 
-**最后更新**: 2026-05-02
+## 链路 7：本地 MacBook → 腾讯云
+
+| 属性 | 值 |
+|------|-----|
+| Key 名称 | `id_ed25519_tencent` |
+| Key 类型 | SSH Ed25519 密钥对 |
+| 公钥内容 | `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGX5VODrtgtU17ZhDEd295zle96jkBbXze92RrcmmwmJ tencent-deploy` |
+| 私钥 | 敏感，不展示 |
+| 存储位置 | `/Users/leo/.ssh/` |
+| 配置位置 | 服务器 `/home/deploy/.ssh/authorized_keys` + `/root/.ssh/authorized_keys` |
+| 用途 | 本地 SSH 登录服务器 |
+| SSH 配置文件 | `/Users/leo/.ssh/config` |
+| 连接命令 | `ssh tencent` |
+| 服务器地址 | `129.211.6.20` |
+| 登录用户 | `deploy` |
+
+---
+
+**最后更新**: 2026-05-03
