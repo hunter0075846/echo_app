@@ -92,7 +92,9 @@ class ChatBubble extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        message.content,
+                        message.content.isEmpty && isStreaming && !message.isUser
+                            ? '...'
+                            : message.content,
                         style: TextStyle(
                           fontSize: 14.sp,
                           color: message.isUser
