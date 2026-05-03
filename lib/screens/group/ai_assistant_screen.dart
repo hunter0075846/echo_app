@@ -68,11 +68,6 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
       } else {
         _scrollController.jumpTo(maxExtent);
       }
-      // 再等一帧：懒加载的 item 构建后 maxScrollExtent 可能增大，再确认一次
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!_scrollController.hasClients) return;
-        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
-      });
     });
   }
 
@@ -200,6 +195,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
             child: ListView.builder(
               controller: _scrollController,
               padding: EdgeInsets.all(16.w),
+              cacheExtent: 9999,
               itemCount: chatState.messages.length,
               itemBuilder: (context, index) {
                 final message = chatState.messages[index];
