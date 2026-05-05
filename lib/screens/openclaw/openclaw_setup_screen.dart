@@ -364,9 +364,9 @@ class _OpenClawSetupScreenState extends State<OpenClawSetupScreen> {
               width: double.infinity,
               padding: EdgeInsets.all(20.w),
               decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.05),
+                color: AppTheme.warningColor.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(12.r),
-                border: Border.all(color: Colors.orange.withOpacity(0.2)),
+                border: Border.all(color: AppTheme.warningColor.withValues(alpha: 0.2)),
               ),
               child: Column(
                 children: [
@@ -375,7 +375,7 @@ class _OpenClawSetupScreenState extends State<OpenClawSetupScreen> {
                     height: 40.w,
                     child: const CircularProgressIndicator(
                       strokeWidth: 3,
-                      valueColor: AlwaysStoppedAnimation(Colors.orange),
+                      valueColor: AlwaysStoppedAnimation(AppTheme.warningColor),
                     ),
                   ),
                   SizedBox(height: 16.h),
@@ -384,7 +384,7 @@ class _OpenClawSetupScreenState extends State<OpenClawSetupScreen> {
                     style: TextStyle(
                       fontSize: 15.sp,
                       fontWeight: FontWeight.w600,
-                      color: Colors.orange.shade800,
+                      color: AppTheme.warningColor,
                     ),
                   ),
                   SizedBox(height: 8.h),

@@ -7,6 +7,7 @@ import '../../models/openclaw_connection_model.dart';
 import '../../services/openclaw_service.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/avatars/openclaw_avatar.dart';
 
 /// OpenClaw 连接列表页
 class OpenClawListScreen extends StatefulWidget {
@@ -98,7 +99,7 @@ class _OpenClawListScreenState extends State<OpenClawListScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('删除', style: TextStyle(color: Colors.red)),
+            child: const Text('删除', style: TextStyle(color: AppTheme.errorColor)),
           ),
         ],
       ),
@@ -147,7 +148,7 @@ class _OpenClawListScreenState extends State<OpenClawListScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _goToSetup,
-        backgroundColor: Colors.orange,
+        backgroundColor: AppTheme.warningColor,
         foregroundColor: Colors.white,
         child: const Icon(Icons.add),
       ),
@@ -260,38 +261,27 @@ class _ConnectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isOnline = connection.status == 'connected';
-    final displayAvatar = connection.avatar ?? '🦞';
 
     return Card(
       margin: EdgeInsets.only(bottom: 12.h),
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12.r),
+        borderRadius: BorderRadius.circular(16.r),
         side: BorderSide(
-          color: isOnline ? Colors.green.withOpacity(0.3) : Colors.orange.withOpacity(0.3),
+          color: isOnline ? AppTheme.successColor.withValues(alpha: 0.3) : AppTheme.warningColor.withValues(alpha: 0.3),
           width: 1,
         ),
       ),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12.r),
+        borderRadius: BorderRadius.circular(16.r),
         child: Padding(
           padding: EdgeInsets.all(14.w),
           child: Row(
             children: [
-              Container(
-                width: 48.w,
-                height: 48.w,
-                decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12.r),
-                ),
-                child: Center(
-                  child: Text(
-                    displayAvatar,
-                    style: TextStyle(fontSize: 22.sp),
-                  ),
-                ),
+              OpenClawAvatar(
+                size: 48,
+                status: connection.status,
               ),
               SizedBox(width: 12.w),
               Expanded(
@@ -313,15 +303,15 @@ class _ConnectionCard extends StatelessWidget {
                           padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
                           decoration: BoxDecoration(
                             color: isOnline
-                                ? Colors.green.withOpacity(0.1)
-                                : Colors.orange.withOpacity(0.1),
+                                ? AppTheme.successColor.withValues(alpha: 0.1)
+                                : AppTheme.warningColor.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(4.r),
                           ),
                           child: Text(
                             isOnline ? '在线' : (connection.isPending ? '等待连接' : '离线'),
                             style: TextStyle(
                               fontSize: 10.sp,
-                              color: isOnline ? Colors.green : Colors.orange,
+                              color: isOnline ? AppTheme.successColor : AppTheme.warningColor,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -366,9 +356,9 @@ class _ConnectionCard extends StatelessWidget {
                     value: 'delete',
                     child: Row(
                       children: [
-                        Icon(Icons.delete_outline, size: 18, color: Colors.red),
+                        Icon(Icons.delete_outline, size: 18, color: AppTheme.errorColor),
                         SizedBox(width: 8),
-                        Text('删除', style: TextStyle(color: Colors.red)),
+                        Text('删除', style: TextStyle(color: AppTheme.errorColor)),
                       ],
                     ),
                   ),

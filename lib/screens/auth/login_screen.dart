@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/avatars/ai_avatar.dart';
 import '../debug/log_viewer_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -112,7 +113,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.bug_report_outlined, color: Colors.grey),
+            icon: Icon(Icons.bug_report_outlined, color: AppTheme.textTertiaryColor),
             tooltip: '查看日志',
             onPressed: () {
               Navigator.push(
@@ -138,19 +139,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     Center(
                       child: Column(
                         children: [
-                          Container(
-                            width: 80.w,
-                            height: 80.w,
-                            decoration: BoxDecoration(
-                              color: AppTheme.primaryColor,
-                              borderRadius: BorderRadius.circular(20.r),
-                            ),
-                            child: Icon(
-                              Icons.chat_bubble_outline,
-                              size: 40.w,
-                              color: Colors.white,
-                            ),
-                          ),
+                          AIAvatar(size: 80.w, animated: true),
                           SizedBox(height: 16.h),
                           Text(
                             '回响',

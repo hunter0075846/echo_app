@@ -4,7 +4,9 @@ import 'package:shimmer/shimmer.dart';
 
 import '../theme/app_theme.dart';
 
-// 通用加载 shimmer
+/// 通用加载 shimmer
+///
+/// 颜色跟随当前主题（light/dark 自动适配）。
 class LoadingShimmer extends StatelessWidget {
   const LoadingShimmer({super.key});
 
@@ -18,6 +20,23 @@ class LoadingShimmer extends StatelessWidget {
   }
 }
 
+class _ShimmerWrapper extends StatelessWidget {
+  final Widget child;
+
+  const _ShimmerWrapper({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Shimmer.fromColors(
+      baseColor: isDark ? AppTheme.surfaceColor.withValues(alpha: 0.5) : AppTheme.dividerColor,
+      highlightColor: isDark ? AppTheme.cardColor.withValues(alpha: 0.8) : Colors.white,
+      child: child,
+    );
+  }
+}
+
 class TopicCardShimmer extends StatelessWidget {
   const TopicCardShimmer({super.key});
 
@@ -27,9 +46,7 @@ class TopicCardShimmer extends StatelessWidget {
       margin: EdgeInsets.only(bottom: 12.h),
       child: Padding(
         padding: EdgeInsets.all(16.w),
-        child: Shimmer.fromColors(
-          baseColor: AppTheme.dividerColor,
-          highlightColor: Colors.white,
+        child: _ShimmerWrapper(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -50,7 +67,7 @@ class TopicCardShimmer extends StatelessWidget {
                     height: 14.h,
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(4.r),
+                      borderRadius: BorderRadius.circular(8.r),
                     ),
                   ),
                 ],
@@ -62,7 +79,7 @@ class TopicCardShimmer extends StatelessWidget {
                 height: 18.h,
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(4.r),
+                  borderRadius: BorderRadius.circular(8.r),
                 ),
               ),
               SizedBox(height: 8.h),
@@ -71,7 +88,7 @@ class TopicCardShimmer extends StatelessWidget {
                 height: 18.h,
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(4.r),
+                  borderRadius: BorderRadius.circular(8.r),
                 ),
               ),
               SizedBox(height: 12.h),
@@ -81,7 +98,7 @@ class TopicCardShimmer extends StatelessWidget {
                 height: 160.h,
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(8.r),
+                  borderRadius: BorderRadius.circular(12.r),
                 ),
               ),
               SizedBox(height: 12.h),
@@ -93,7 +110,7 @@ class TopicCardShimmer extends StatelessWidget {
                     height: 14.h,
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(4.r),
+                      borderRadius: BorderRadius.circular(8.r),
                     ),
                   ),
                   SizedBox(width: 16.w),
@@ -102,7 +119,7 @@ class TopicCardShimmer extends StatelessWidget {
                     height: 14.h,
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(4.r),
+                      borderRadius: BorderRadius.circular(8.r),
                     ),
                   ),
                 ],
@@ -124,9 +141,7 @@ class GroupCardShimmer extends StatelessWidget {
       margin: EdgeInsets.only(bottom: 12.h),
       child: Padding(
         padding: EdgeInsets.all(16.w),
-        child: Shimmer.fromColors(
-          baseColor: AppTheme.dividerColor,
-          highlightColor: Colors.white,
+        child: _ShimmerWrapper(
           child: Row(
             children: [
               // 群头像
@@ -135,7 +150,7 @@ class GroupCardShimmer extends StatelessWidget {
                 height: 56.w,
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(12.r),
+                  borderRadius: BorderRadius.circular(16.r),
                 ),
               ),
               SizedBox(width: 16.w),
@@ -149,7 +164,7 @@ class GroupCardShimmer extends StatelessWidget {
                       height: 16.h,
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(4.r),
+                        borderRadius: BorderRadius.circular(8.r),
                       ),
                     ),
                     SizedBox(height: 8.h),
@@ -158,7 +173,7 @@ class GroupCardShimmer extends StatelessWidget {
                       height: 14.h,
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(4.r),
+                        borderRadius: BorderRadius.circular(8.r),
                       ),
                     ),
                   ],
@@ -177,9 +192,7 @@ class ProfileShimmer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Shimmer.fromColors(
-      baseColor: AppTheme.dividerColor,
-      highlightColor: Colors.white,
+    return _ShimmerWrapper(
       child: Padding(
         padding: EdgeInsets.all(16.w),
         child: Column(
@@ -208,7 +221,7 @@ class ProfileShimmer extends StatelessWidget {
                             height: 20.h,
                             decoration: BoxDecoration(
                               color: Colors.white,
-                              borderRadius: BorderRadius.circular(4.r),
+                              borderRadius: BorderRadius.circular(8.r),
                             ),
                           ),
                           SizedBox(height: 8.h),
@@ -217,7 +230,7 @@ class ProfileShimmer extends StatelessWidget {
                             height: 14.h,
                             decoration: BoxDecoration(
                               color: Colors.white,
-                              borderRadius: BorderRadius.circular(4.r),
+                              borderRadius: BorderRadius.circular(8.r),
                             ),
                           ),
                         ],

@@ -8,6 +8,7 @@ import '../../models/group_model.dart';
 import '../../providers/group_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/avatars/user_avatar.dart';
 
 class GroupChatScreen extends ConsumerStatefulWidget {
   final String groupId;
@@ -558,43 +559,12 @@ class _ChatMessage extends StatelessWidget {
       );
     }
 
-    // 有头像URL时显示网络图片
-    if (message.senderAvatar != null && message.senderAvatar!.isNotEmpty) {
-      return ClipOval(
-        child: Image.network(
-          message.senderAvatar!,
-          width: 40.w,
-          height: 40.w,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return _buildDefaultAvatar();
-          },
-          loadingBuilder: (context, child, loadingProgress) {
-            if (loadingProgress == null) return child;
-            return Container(
-              width: 40.w,
-              height: 40.w,
-              decoration: BoxDecoration(
-                color: Colors.grey[200],
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  value: loadingProgress.expectedTotalBytes != null
-                      ? loadingProgress.cumulativeBytesLoaded /
-                          loadingProgress.expectedTotalBytes!
-                      : null,
-                ),
-              ),
-            );
-          },
-        ),
-      );
-    }
-
-    // 默认头像
-    return _buildDefaultAvatar();
+    return UserAvatar(
+      id: message.senderId,
+      name: message.senderName,
+      imageUrl: message.senderAvatar,
+      size: 40,
+    );
   }
 
   // 构建消息内容
@@ -670,27 +640,4 @@ class _ChatMessage extends StatelessWidget {
   }
 
   // 构建默认头像
-  Widget _buildDefaultAvatar() {
-    final initial = (message.senderName?.isNotEmpty == true)
-        ? message.senderName![0].toUpperCase()
-        : '?';
-    return Container(
-      width: 40.w,
-      height: 40.w,
-      decoration: BoxDecoration(
-        color: AppTheme.primaryColor,
-        shape: BoxShape.circle,
-      ),
-      child: Center(
-        child: Text(
-          initial,
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 18.sp,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-    );
-  }
 }

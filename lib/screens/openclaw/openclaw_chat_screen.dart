@@ -9,6 +9,7 @@ import '../../models/openclaw_message_model.dart';
 import '../../services/openclaw_service.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/avatars/openclaw_avatar.dart';
 
 /// 与 OpenClaw 一对一对话页面
 class OpenClawChatScreen extends ConsumerStatefulWidget {
@@ -172,26 +173,13 @@ class _OpenClawChatScreenState extends ConsumerState<OpenClawChatScreen> {
   @override
   Widget build(BuildContext context) {
     final displayName = _connection?.displayName ?? '我的OpenClaw';
-    final displayAvatar = _connection?.avatar ?? '🦞';
+    final status = _isConnected ? 'connected' : 'disconnected';
 
     return Scaffold(
       appBar: AppBar(
         title: Row(
           children: [
-            Container(
-              width: 36.w,
-              height: 36.w,
-              decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(10.r),
-              ),
-              child: Center(
-                child: Text(
-                  displayAvatar,
-                  style: TextStyle(fontSize: 20.sp),
-                ),
-              ),
-            ),
+            OpenClawAvatar(size: 36.w, status: status),
             SizedBox(width: 12.w),
             Expanded(
               child: Column(
@@ -208,7 +196,9 @@ class _OpenClawChatScreenState extends ConsumerState<OpenClawChatScreen> {
                         width: 8.w,
                         height: 8.w,
                         decoration: BoxDecoration(
-                          color: _isConnected ? Colors.green : Colors.grey,
+                          color: _isConnected
+                              ? AppTheme.successColor
+                              : AppTheme.textTertiaryColor,
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -245,16 +235,16 @@ class _OpenClawChatScreenState extends ConsumerState<OpenClawChatScreen> {
           if (!_isConnected)
             Container(
               width: double.infinity,
-              color: Colors.orange.withOpacity(0.1),
+              color: AppTheme.warningColor.withValues(alpha: 0.1),
               padding: EdgeInsets.symmetric(vertical: 10.h, horizontal: 16.w),
               child: Row(
                 children: [
-                  Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 18),
+                  Icon(Icons.warning_amber_rounded, color: AppTheme.warningColor, size: 18),
                   SizedBox(width: 8.w),
                   Expanded(
                     child: Text(
                       'OpenClaw 未连接，请检查设备状态',
-                      style: TextStyle(fontSize: 13.sp, color: Colors.orange.shade800),
+                      style: TextStyle(fontSize: 13.sp, color: AppTheme.warningColor),
                     ),
                   ),
                 ],
@@ -269,7 +259,6 @@ class _OpenClawChatScreenState extends ConsumerState<OpenClawChatScreen> {
                     ? _EmptyState(
                         isConnected: _isConnected,
                         displayName: displayName,
-                        displayAvatar: displayAvatar,
                       )
                     : ListView.builder(
                         controller: _scrollController,
@@ -279,7 +268,6 @@ class _OpenClawChatScreenState extends ConsumerState<OpenClawChatScreen> {
                           final message = _messages[index];
                           return _ChatBubble(
                             message: message,
-                            assistantAvatar: displayAvatar,
                           );
                         },
                       ),
@@ -366,12 +354,10 @@ class _OpenClawChatScreenState extends ConsumerState<OpenClawChatScreen> {
 class _EmptyState extends StatelessWidget {
   final bool isConnected;
   final String displayName;
-  final String displayAvatar;
 
   const _EmptyState({
     required this.isConnected,
     required this.displayName,
-    required this.displayAvatar,
   });
 
   @override
@@ -382,9 +368,9 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              displayAvatar,
-              style: TextStyle(fontSize: 48.sp),
+            OpenClawAvatar(
+              size: 64.w,
+              status: isConnected ? 'connected' : 'disconnected',
             ),
             SizedBox(height: 16.h),
             Text(
@@ -414,11 +400,9 @@ class _EmptyState extends StatelessWidget {
 
 class _ChatBubble extends StatelessWidget {
   final OpenClawMessageModel message;
-  final String assistantAvatar;
 
   const _ChatBubble({
     required this.message,
-    required this.assistantAvatar,
   });
 
   @override
@@ -437,19 +421,9 @@ class _ChatBubble extends StatelessWidget {
           children: [
             // OpenClaw头像
             if (!message.isUser) ...[
-              Container(
-                width: 36.w,
-                height: 36.w,
-                decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(10.r),
-                ),
-                child: Center(
-                  child: Text(
-                    assistantAvatar,
-                    style: TextStyle(fontSize: 18.sp),
-                  ),
-                ),
+              OpenClawAvatar(
+                size: 36.w,
+                status: 'connected',
               ),
               SizedBox(width: 8.w),
             ],

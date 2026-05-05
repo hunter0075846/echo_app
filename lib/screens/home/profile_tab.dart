@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/avatars/user_avatar.dart';
 
 class ProfileTab extends ConsumerWidget {
   const ProfileTab({super.key});
@@ -37,16 +38,11 @@ class ProfileTab extends ConsumerWidget {
                 child: Row(
                   children: [
                     // 头像
-                    CircleAvatar(
-                      radius: 40.r,
-                      backgroundColor: AppTheme.primaryLightColor,
-                      child: user?.avatar != null
-                          ? null
-                          : Icon(
-                              Icons.person,
-                              size: 40.w,
-                              color: AppTheme.primaryColor,
-                            ),
+                    UserAvatar(
+                      id: user?.id,
+                      name: user?.nickname,
+                      imageUrl: user?.avatar,
+                      size: 80,
                     ),
                     SizedBox(width: 16.w),
                     // 昵称和手机号

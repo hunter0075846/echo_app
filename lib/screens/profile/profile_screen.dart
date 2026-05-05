@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../theme/app_theme.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -47,7 +48,7 @@ class ProfileScreen extends ConsumerWidget {
                     Text(
                       '手机号: ${user.phone}',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.grey,
+                            color: AppTheme.textTertiaryColor,
                           ),
                     ),
                   ],
@@ -60,10 +61,10 @@ class ProfileScreen extends ConsumerWidget {
 
           // 退出登录按钮
           ListTile(
-            leading: const Icon(Icons.logout, color: Colors.red),
+            leading: const Icon(Icons.logout, color: AppTheme.errorColor),
             title: const Text(
               '退出登录',
-              style: TextStyle(color: Colors.red),
+              style: TextStyle(color: AppTheme.errorColor),
             ),
             onTap: () => _showLogoutConfirmDialog(context, ref),
           ),
@@ -93,7 +94,7 @@ class ProfileScreen extends ConsumerWidget {
             },
             child: const Text(
               '退出',
-              style: TextStyle(color: Colors.red),
+              style: TextStyle(color: AppTheme.errorColor),
             ),
           ),
         ],

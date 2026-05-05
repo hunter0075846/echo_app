@@ -7,6 +7,7 @@ import '../../models/agent_model.dart';
 import '../../services/agent_service.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/avatars/agent_avatar.dart';
 
 /// 与第三方AI Agent 一对一对话页面
 class AgentChatScreen extends ConsumerStatefulWidget {
@@ -163,25 +164,10 @@ class _AgentChatScreenState extends ConsumerState<AgentChatScreen> {
       appBar: AppBar(
         title: Row(
           children: [
-            Container(
-              width: 36.w,
-              height: 36.w,
-              decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10.r),
-              ),
-              child: Center(
-                child: _agent!.avatar != null && _agent!.avatar!.isNotEmpty
-                    ? Text(
-                        _agent!.avatar!,
-                        style: TextStyle(fontSize: 18.sp),
-                      )
-                    : Icon(
-                        Icons.smart_toy,
-                        color: AppTheme.primaryColor,
-                        size: 20,
-                      ),
-              ),
+            AgentAvatar(
+              emoji: _agent!.avatar,
+              icon: Icons.smart_toy,
+              size: 36,
             ),
             SizedBox(width: 12.w),
             Expanded(

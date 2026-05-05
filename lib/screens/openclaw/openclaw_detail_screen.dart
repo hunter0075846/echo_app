@@ -135,7 +135,7 @@ class _OpenClawDetailScreenState extends State<OpenClawDetailScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('重新生成', style: TextStyle(color: Colors.orange)),
+            child: const Text('重新生成', style: TextStyle(color: AppTheme.warningColor)),
           ),
         ],
       ),
@@ -251,7 +251,7 @@ class _OpenClawDetailScreenState extends State<OpenClawDetailScreen> {
               width: 80.w,
               height: 80.w,
               decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
+                color: AppTheme.warningColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(20.r),
               ),
               child: Center(
@@ -353,10 +353,10 @@ class _OpenClawDetailScreenState extends State<OpenClawDetailScreen> {
             width: double.infinity,
             child: OutlinedButton.icon(
               onPressed: () => _deleteConnection(),
-              icon: const Icon(Icons.delete_outline, size: 18, color: Colors.red),
-              label: const Text('删除连接', style: TextStyle(color: Colors.red)),
+              icon: const Icon(Icons.delete_outline, size: 18, color: AppTheme.errorColor),
+              label: const Text('删除连接', style: TextStyle(color: AppTheme.errorColor)),
               style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Colors.red),
+                side: const BorderSide(color: AppTheme.errorColor),
               ),
             ),
           ),
@@ -502,7 +502,7 @@ class _OpenClawDetailScreenState extends State<OpenClawDetailScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('删除', style: TextStyle(color: Colors.red)),
+            child: const Text('删除', style: TextStyle(color: AppTheme.errorColor)),
           ),
         ],
       ),

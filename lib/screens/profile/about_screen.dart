@@ -233,11 +233,11 @@ class _AboutScreenState extends State<AboutScreen> {
       return Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.check_circle, size: 16.w, color: Colors.green),
+          Icon(Icons.check_circle, size: 16.w, color: AppTheme.successColor),
           SizedBox(width: 4.w),
           Text(
             '已是最新版本',
-            style: TextStyle(fontSize: 13.sp, color: Colors.green),
+            style: TextStyle(fontSize: 13.sp, color: AppTheme.successColor),
           ),
         ],
       );

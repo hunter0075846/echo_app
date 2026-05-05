@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../models/topic_model.dart';
 import '../../providers/topic_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/avatars/user_avatar.dart';
 import '../../widgets/loading_shimmer.dart';
 
 class TopicSquareTab extends ConsumerStatefulWidget {
@@ -260,23 +261,12 @@ class _TopicCard extends StatelessWidget {
               Row(
                 children: [
                   // 作者头像
-                  if (topic.author.avatar != null)
-                    CircleAvatar(
-                      radius: 12.w,
-                      backgroundImage: NetworkImage(topic.author.avatar!),
-                    )
-                  else
-                    CircleAvatar(
-                      radius: 12.w,
-                      backgroundColor: AppTheme.primaryColor,
-                      child: Text(
-                        topic.author.nickname?.substring(0, 1) ?? 'U',
-                        style: TextStyle(
-                          fontSize: 10.sp,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
+                  UserAvatar(
+                    id: topic.author.id,
+                    name: topic.author.nickname,
+                    imageUrl: topic.author.avatar,
+                    size: 24,
+                  ),
                   SizedBox(width: 8.w),
                   // 作者名
                   Text(

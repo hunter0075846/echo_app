@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../../providers/assistant_chat_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/avatars/ai_avatar.dart';
 import '../../widgets/chat_bubble.dart';
 import '../../widgets/forward_to_group_dialog.dart';
 
@@ -114,24 +115,8 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
       appBar: AppBar(
         title: Row(
           children: [
-            Container(
-              width: 36.w,
-              height: 36.w,
-              decoration: BoxDecoration(
-                color: AppTheme.primaryColor,
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: Text(
-                  '安',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18.sp,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
+            AIAvatar(size: 36.w),
+
             SizedBox(width: 12.w),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,

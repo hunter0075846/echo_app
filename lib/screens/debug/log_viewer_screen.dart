@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../models/log_model.dart';
 import '../../services/log_service.dart';
+import '../../theme/app_theme.dart';
 
 class LogViewerScreen extends StatefulWidget {
   const LogViewerScreen({Key? key}) : super(key: key);
@@ -54,13 +55,13 @@ class _LogViewerScreenState extends State<LogViewerScreen> {
   Color _getLevelColor(LogLevel level) {
     switch (level) {
       case LogLevel.debug:
-        return Colors.grey;
+        return AppTheme.textTertiaryColor;
       case LogLevel.info:
-        return Colors.blue;
+        return AppTheme.infoColor;
       case LogLevel.warning:
-        return Colors.orange;
+        return AppTheme.warningColor;
       case LogLevel.error:
-        return Colors.red;
+        return AppTheme.errorColor;
     }
   }
 
@@ -90,7 +91,7 @@ class _LogViewerScreenState extends State<LogViewerScreen> {
                         Navigator.pop(context);
                         setState(() {});
                       },
-                      child: const Text('清空', style: TextStyle(color: Colors.red)),
+                      child: const Text('清空', style: TextStyle(color: AppTheme.errorColor)),
                     ),
                   ],
                 ),
@@ -147,28 +148,28 @@ class _LogViewerScreenState extends State<LogViewerScreen> {
                       label: 'DEBUG',
                       selected: _filterLevel == LogLevel.debug,
                       onSelected: () => setState(() => _filterLevel = LogLevel.debug),
-                      color: Colors.grey,
+                      color: AppTheme.textTertiaryColor,
                     ),
                     const SizedBox(width: 8),
                     _buildFilterChip(
                       label: 'INFO',
                       selected: _filterLevel == LogLevel.info,
                       onSelected: () => setState(() => _filterLevel = LogLevel.info),
-                      color: Colors.blue,
+                      color: AppTheme.infoColor,
                     ),
                     const SizedBox(width: 8),
                     _buildFilterChip(
                       label: 'WARN',
                       selected: _filterLevel == LogLevel.warning,
                       onSelected: () => setState(() => _filterLevel = LogLevel.warning),
-                      color: Colors.orange,
+                      color: AppTheme.warningColor,
                     ),
                     const SizedBox(width: 8),
                     _buildFilterChip(
                       label: 'ERROR',
                       selected: _filterLevel == LogLevel.error,
                       onSelected: () => setState(() => _filterLevel = LogLevel.error),
-                      color: Colors.red,
+                      color: AppTheme.errorColor,
                     ),
                     const SizedBox(width: 16),
                     // 类型过滤
@@ -195,9 +196,9 @@ class _LogViewerScreenState extends State<LogViewerScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.article_outlined, size: 64, color: Colors.grey),
+                  Icon(Icons.article_outlined, size: 64, color: AppTheme.textTertiaryColor),
                   SizedBox(height: 16),
-                  Text('暂无日志', style: TextStyle(color: Colors.grey)),
+                  Text('暂无日志', style: TextStyle(color: AppTheme.textTertiaryColor)),
                 ],
               ),
             );
@@ -245,7 +246,7 @@ class _LogViewerScreenState extends State<LogViewerScreen> {
       label: Text(emoji, style: const TextStyle(fontSize: 14)),
       selected: selected,
       onSelected: (_) => setState(() => _filterType = selected ? null : type),
-      selectedColor: Colors.blue,
+      selectedColor: AppTheme.infoColor,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
     );
@@ -292,7 +293,7 @@ class _LogViewerScreenState extends State<LogViewerScreen> {
                     log.formattedTime,
                     style: TextStyle(
                       fontSize: 11,
-                      color: Colors.grey[600],
+                      color: AppTheme.textSecondaryColor,
                     ),
                   ),
                 ],
@@ -312,7 +313,7 @@ class _LogViewerScreenState extends State<LogViewerScreen> {
                   'Error: ${log.error}',
                   style: TextStyle(
                     fontSize: 11,
-                    color: Colors.red[700],
+                    color: AppTheme.errorColor,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -376,7 +377,7 @@ class _LogViewerScreenState extends State<LogViewerScreen> {
                           width: double.infinity,
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Colors.grey[100],
+                            color: AppTheme.backgroundColor,
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: SelectableText(log.message),
@@ -389,7 +390,7 @@ class _LogViewerScreenState extends State<LogViewerScreen> {
                             width: double.infinity,
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: Colors.grey[100],
+                              color: AppTheme.backgroundColor,
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: SelectableText(
@@ -400,18 +401,18 @@ class _LogViewerScreenState extends State<LogViewerScreen> {
                         ],
                         if (log.error != null) ...[
                           const SizedBox(height: 16),
-                          const Text('错误:', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+                          const Text('错误:', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.errorColor)),
                           const SizedBox(height: 8),
                           Container(
                             width: double.infinity,
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: Colors.red[50],
+                              color: AppTheme.errorColor.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: SelectableText(
                               log.error!,
-                              style: TextStyle(color: Colors.red[900]),
+                              style: TextStyle(color: AppTheme.errorColor),
                             ),
                           ),
                         ],
@@ -423,7 +424,7 @@ class _LogViewerScreenState extends State<LogViewerScreen> {
                             width: double.infinity,
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: Colors.grey[100],
+                              color: AppTheme.backgroundColor,
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: SelectableText(
@@ -456,7 +457,7 @@ class _LogViewerScreenState extends State<LogViewerScreen> {
               '$label:',
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
-                color: Colors.grey,
+                color: AppTheme.textTertiaryColor,
               ),
             ),
           ),

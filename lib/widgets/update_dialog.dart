@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/update_service.dart';
+import '../theme/app_theme.dart';
 
 class UpdateDialog extends StatelessWidget {
   final UpdateInfo info;
@@ -27,7 +28,7 @@ class UpdateDialog extends StatelessWidget {
               const SizedBox(height: 12),
               const Text(
                 '当前版本已不可用，必须更新后才能继续使用。',
-                style: TextStyle(color: Colors.red, fontSize: 12),
+                style: TextStyle(color: AppTheme.errorColor, fontSize: 12),
               ),
             ],
           ],

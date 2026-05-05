@@ -11,6 +11,9 @@ import '../../providers/group_provider.dart';
 import '../../services/openclaw_service.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/avatars/ai_avatar.dart';
+import '../../widgets/avatars/openclaw_avatar.dart';
+import '../../widgets/avatars/user_avatar.dart';
 import '../../widgets/loading_shimmer.dart';
 
 class GroupListTab extends ConsumerStatefulWidget {
@@ -97,14 +100,14 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
             Icon(
               Icons.error_outline,
               size: 48.w,
-              color: AppTheme.textTertiaryColor,
+              color: Theme.of(context).echoTextTertiary,
             ),
             SizedBox(height: 16.h),
             Text(
               '加载失败',
               style: TextStyle(
                 fontSize: 16.sp,
-                color: AppTheme.textSecondaryColor,
+                color: Theme.of(context).echoTextSecondary,
               ),
             ),
             SizedBox(height: 8.h),
@@ -217,7 +220,7 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
           style: TextStyle(
             fontSize: 18.sp,
             fontWeight: FontWeight.w700,
-            color: AppTheme.textPrimaryColor,
+            color: Theme.of(context).echoTextPrimary,
           ),
         ),
         action,
@@ -231,44 +234,20 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
       margin: EdgeInsets.zero,
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12.r),
+        borderRadius: BorderRadius.circular(16.r),
         side: BorderSide(
-          color: AppTheme.primaryColor.withOpacity(0.2),
+          color: AppTheme.primaryColor.withValues(alpha: 0.15),
           width: 1,
         ),
       ),
       child: InkWell(
         onTap: () => context.push('/ai-assistant'),
-        borderRadius: BorderRadius.circular(12.r),
+        borderRadius: BorderRadius.circular(16.r),
         child: Padding(
           padding: EdgeInsets.all(14.w),
           child: Row(
             children: [
-              Container(
-                width: 48.w,
-                height: 48.w,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      AppTheme.primaryColor,
-                      AppTheme.primaryLightColor,
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(12.r),
-                ),
-                child: Center(
-                  child: Text(
-                    '安',
-                    style: TextStyle(
-                      fontSize: 22.sp,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
+              AIAvatar(size: 48.w),
               SizedBox(width: 12.w),
               Expanded(
                 child: Column(
@@ -281,21 +260,21 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
                           style: TextStyle(
                             fontSize: 15.sp,
                             fontWeight: FontWeight.w600,
-                            color: AppTheme.textPrimaryColor,
+                            color: Theme.of(context).echoTextPrimary,
                           ),
                         ),
                         SizedBox(width: 6.w),
                         Container(
                           padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
                           decoration: BoxDecoration(
-                            color: AppTheme.primaryColor.withOpacity(0.1),
+                            color: AppTheme.accentColor.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(4.r),
                           ),
                           child: Text(
                             '官方',
                             style: TextStyle(
                               fontSize: 10.sp,
-                              color: AppTheme.primaryColor,
+                              color: AppTheme.accentColor,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -307,7 +286,7 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
                       '推荐话题、分析群聊氛围、生成回忆总结',
                       style: TextStyle(
                         fontSize: 12.sp,
-                        color: AppTheme.textSecondaryColor,
+                        color: Theme.of(context).echoTextSecondary,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -318,7 +297,7 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
               Icon(
                 Icons.chevron_right,
                 size: 20,
-                color: AppTheme.textTertiaryColor,
+                color: Theme.of(context).echoTextTertiary,
               ),
             ],
           ),
@@ -330,7 +309,7 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
   // OpenClaw 连接卡片
   Widget _buildOpenClawConnectionCard(BuildContext context, OpenClawConnectionModel connection) {
     final isOnline = connection.status == 'connected';
-    final displayAvatar = connection.avatar ?? '🦞';
+    final statusColor = isOnline ? AppTheme.successColor : AppTheme.warningColor;
 
     return Container(
       margin: EdgeInsets.only(bottom: 10.h),
@@ -338,9 +317,9 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
         margin: EdgeInsets.zero,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12.r),
+          borderRadius: BorderRadius.circular(16.r),
           side: BorderSide(
-            color: isOnline ? Colors.green.withOpacity(0.3) : Colors.orange.withOpacity(0.3),
+            color: statusColor.withValues(alpha: 0.3),
             width: 1,
           ),
         ),
@@ -352,24 +331,14 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
               context.push('/openclaw/chat?id=${connection.id}');
             }
           },
-          borderRadius: BorderRadius.circular(12.r),
+          borderRadius: BorderRadius.circular(16.r),
           child: Padding(
             padding: EdgeInsets.all(14.w),
             child: Row(
               children: [
-                Container(
-                  width: 48.w,
-                  height: 48.w,
-                  decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12.r),
-                  ),
-                  child: Center(
-                    child: Text(
-                      displayAvatar,
-                      style: TextStyle(fontSize: 22.sp),
-                    ),
-                  ),
+                OpenClawAvatar(
+                  size: 48,
+                  status: connection.status,
                 ),
                 SizedBox(width: 12.w),
                 Expanded(
@@ -383,23 +352,21 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
                             style: TextStyle(
                               fontSize: 15.sp,
                               fontWeight: FontWeight.w600,
-                              color: AppTheme.textPrimaryColor,
+                              color: Theme.of(context).echoTextPrimary,
                             ),
                           ),
                           SizedBox(width: 6.w),
                           Container(
                             padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
                             decoration: BoxDecoration(
-                              color: isOnline
-                                  ? Colors.green.withOpacity(0.1)
-                                  : Colors.orange.withOpacity(0.1),
+                              color: statusColor.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(4.r),
                             ),
                             child: Text(
                               isOnline ? '在线' : (connection.isPending ? '等待连接' : '离线'),
                               style: TextStyle(
                                 fontSize: 10.sp,
-                                color: isOnline ? Colors.green : Colors.orange,
+                                color: statusColor,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -415,7 +382,7 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
                                 : '设备已离线'),
                         style: TextStyle(
                           fontSize: 12.sp,
-                          color: AppTheme.textSecondaryColor,
+                          color: Theme.of(context).echoTextSecondary,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -426,7 +393,7 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
                 Icon(
                   Icons.chevron_right,
                   size: 20,
-                  color: AppTheme.textTertiaryColor,
+                  color: Theme.of(context).echoTextTertiary,
                 ),
               ],
             ),
@@ -462,7 +429,7 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
                 style: TextStyle(
                   fontSize: 14.sp,
                   fontWeight: FontWeight.w500,
-                  color: AppTheme.textPrimaryColor,
+                  color: Theme.of(context).echoTextPrimary,
                 ),
               ),
             ),
@@ -495,7 +462,7 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
             Icon(
               Icons.chat_bubble_outline,
               size: 48.w,
-              color: AppTheme.textTertiaryColor,
+              color: Theme.of(context).echoTextTertiary,
             ),
             SizedBox(height: 12.h),
             Text(
@@ -503,7 +470,7 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
               style: TextStyle(
                 fontSize: 16.sp,
                 fontWeight: FontWeight.w500,
-                color: AppTheme.textSecondaryColor,
+                color: Theme.of(context).echoTextSecondary,
               ),
             ),
             SizedBox(height: 6.h),
@@ -511,7 +478,7 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
               '创建群聊或扫码加入',
               style: TextStyle(
                 fontSize: 13.sp,
-                color: AppTheme.textTertiaryColor,
+                color: Theme.of(context).echoTextTertiary,
               ),
             ),
             SizedBox(height: 16.h),
@@ -677,23 +644,10 @@ class GroupCard extends StatelessWidget {
             padding: EdgeInsets.all(14.w),
             child: Row(
               children: [
-                Container(
-                  width: 48.w,
-                  height: 48.w,
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryColor,
-                    borderRadius: BorderRadius.circular(12.r),
-                  ),
-                  child: Center(
-                    child: Text(
-                      group.name.isNotEmpty ? group.name[0] : '群',
-                      style: TextStyle(
-                        fontSize: 22.sp,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
+                UserAvatar(
+                  id: group.id,
+                  name: group.name.isNotEmpty ? group.name : '群',
+                  size: 48,
                 ),
                 SizedBox(width: 12.w),
                 Expanded(
@@ -705,7 +659,7 @@ class GroupCard extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 15.sp,
                           fontWeight: FontWeight.w600,
-                          color: AppTheme.textPrimaryColor,
+                          color: Theme.of(context).echoTextPrimary,
                         ),
                       ),
                       if (group.description != null && group.description!.isNotEmpty)
@@ -715,7 +669,7 @@ class GroupCard extends StatelessWidget {
                             group.description!,
                             style: TextStyle(
                               fontSize: 13.sp,
-                              color: AppTheme.textSecondaryColor,
+                              color: Theme.of(context).echoTextSecondary,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -726,7 +680,7 @@ class GroupCard extends StatelessWidget {
                         '${group.currentMembers}/${group.maxMembers} 人',
                         style: TextStyle(
                           fontSize: 12.sp,
-                          color: AppTheme.textTertiaryColor,
+                          color: Theme.of(context).echoTextTertiary,
                         ),
                       ),
                     ],
@@ -735,7 +689,7 @@ class GroupCard extends StatelessWidget {
                 Icon(
                   Icons.chevron_right,
                   size: 20,
-                  color: AppTheme.textTertiaryColor,
+                  color: Theme.of(context).echoTextTertiary,
                 ),
               ],
             ),
