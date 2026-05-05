@@ -9,6 +9,8 @@ import '../screens/group/group_chat_screen.dart';
 import '../screens/group/memory_timeline_screen.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/openclaw/openclaw_chat_screen.dart';
+import '../screens/openclaw/openclaw_detail_screen.dart';
+import '../screens/openclaw/openclaw_list_screen.dart';
 import '../screens/openclaw/openclaw_setup_screen.dart';
 import '../screens/profile/about_screen.dart';
 import '../screens/profile/profile_screen.dart';
@@ -97,13 +99,28 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/about',
         builder: (context, state) => const AboutScreen(),
       ),
+      // OpenClaw 路由
+      GoRoute(
+        path: '/openclaw',
+        builder: (context, state) => const OpenClawListScreen(),
+      ),
       GoRoute(
         path: '/openclaw/setup',
-        builder: (context, state) => const OpenClawSetupScreen(),
+        builder: (context, state) => OpenClawSetupScreen(
+          connectionId: state.uri.queryParameters['id'],
+        ),
       ),
       GoRoute(
         path: '/openclaw/chat',
-        builder: (context, state) => const OpenClawChatScreen(),
+        builder: (context, state) => OpenClawChatScreen(
+          connectionId: state.uri.queryParameters['id']!,
+        ),
+      ),
+      GoRoute(
+        path: '/openclaw/:id/edit',
+        builder: (context, state) => OpenClawDetailScreen(
+          connectionId: state.pathParameters['id']!,
+        ),
       ),
     ],
     errorBuilder: (context, state) => Scaffold(

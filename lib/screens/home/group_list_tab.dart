@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../models/group_model.dart';
+import '../../models/openclaw_connection_model.dart';
 import '../../providers/group_provider.dart';
 import '../../services/openclaw_service.dart';
 import '../../services/api_service.dart';
@@ -19,22 +22,22 @@ class GroupListTab extends ConsumerStatefulWidget {
 
 class _GroupListTabState extends ConsumerState<GroupListTab> {
   late final OpenClawService _openClawService;
-  Map<String, dynamic> _openClawStatus = {};
+  List<OpenClawConnectionModel> _openClawConnections = [];
   bool _openClawLoading = true;
 
   @override
   void initState() {
     super.initState();
     _openClawService = OpenClawService(ApiService());
-    _loadOpenClawStatus();
+    _loadOpenClawConnections();
   }
 
-  Future<void> _loadOpenClawStatus() async {
+  Future<void> _loadOpenClawConnections() async {
     try {
-      final status = await _openClawService.getStatus();
+      final connections = await _openClawService.getConnections();
       if (mounted) {
         setState(() {
-          _openClawStatus = status;
+          _openClawConnections = connections;
           _openClawLoading = false;
         });
       }
@@ -48,7 +51,7 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
   Future<void> _refreshAll() async {
     await Future.wait([
       ref.read(groupListProvider.notifier).loadGroups(),
-      _loadOpenClawStatus(),
+      _loadOpenClawConnections(),
     ]);
   }
 
@@ -127,13 +130,47 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
 
         // 小安卡片
         _buildXiaoAnCard(context),
-        SizedBox(height: 10.h),
+        SizedBox(height: 16.h),
+        const Divider(),
+        SizedBox(height: 16.h),
 
-        // 我的OpenClaw
+        // ========== OpenClaw 区域 ==========
+        _buildSectionHeader(
+          context,
+          title: 'OpenClaw',
+          action: TextButton(
+            onPressed: () => context.push('/openclaw'),
+            child: Text(
+              _openClawConnections.isNotEmpty ? '管理' : '去关联',
+              style: TextStyle(fontSize: 13.sp),
+            ),
+          ),
+        ),
+        SizedBox(height: 12.h),
+
         if (_openClawLoading)
-          const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)))
+          const Center(
+            child: SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          )
+        else if (_openClawConnections.isEmpty)
+          _buildOpenClawConnectPrompt(context)
         else
-          _buildOpenClawCard(context),
+          ..._openClawConnections.take(2).map(
+                (conn) => _buildOpenClawConnectionCard(context, conn),
+              ),
+
+        if (_openClawConnections.length > 2)
+          TextButton(
+            onPressed: () => context.push('/openclaw'),
+            child: Text(
+              '查看全部 ${_openClawConnections.length} 个连接',
+              style: TextStyle(fontSize: 13.sp),
+            ),
+          ),
 
         SizedBox(height: 16.h),
         const Divider(),
@@ -290,14 +327,10 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
     );
   }
 
-  // 我的OpenClaw卡片
-  Widget _buildOpenClawCard(BuildContext context) {
-    final connected = _openClawStatus['connected'] == true;
-    final status = _openClawStatus['status'] as String? ?? 'none';
-
-    if (status == 'none') {
-      return _buildOpenClawConnectPrompt(context);
-    }
+  // OpenClaw 连接卡片
+  Widget _buildOpenClawConnectionCard(BuildContext context, OpenClawConnectionModel connection) {
+    final isOnline = connection.status == 'connected';
+    final displayAvatar = connection.avatar ?? '🦞';
 
     return Container(
       margin: EdgeInsets.only(bottom: 10.h),
@@ -307,16 +340,16 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12.r),
           side: BorderSide(
-            color: connected ? Colors.green.withOpacity(0.3) : Colors.orange.withOpacity(0.3),
+            color: isOnline ? Colors.green.withOpacity(0.3) : Colors.orange.withOpacity(0.3),
             width: 1,
           ),
         ),
         child: InkWell(
           onTap: () {
-            if (connected) {
-              context.push('/openclaw/chat');
+            if (connection.isPending) {
+              context.push('/openclaw/setup?id=${connection.id}').then((_) => _loadOpenClawConnections());
             } else {
-              _showOpenClawSetup(context);
+              context.push('/openclaw/chat?id=${connection.id}');
             }
           },
           borderRadius: BorderRadius.circular(12.r),
@@ -333,7 +366,7 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
                   ),
                   child: Center(
                     child: Text(
-                      '🦞',
+                      displayAvatar,
                       style: TextStyle(fontSize: 22.sp),
                     ),
                   ),
@@ -346,7 +379,7 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
                       Row(
                         children: [
                           Text(
-                            '我的OpenClaw',
+                            connection.displayName,
                             style: TextStyle(
                               fontSize: 15.sp,
                               fontWeight: FontWeight.w600,
@@ -357,16 +390,16 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
                           Container(
                             padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
                             decoration: BoxDecoration(
-                              color: connected
+                              color: isOnline
                                   ? Colors.green.withOpacity(0.1)
                                   : Colors.orange.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(4.r),
                             ),
                             child: Text(
-                              connected ? '在线' : '等待连接',
+                              isOnline ? '在线' : (connection.isPending ? '等待连接' : '离线'),
                               style: TextStyle(
                                 fontSize: 10.sp,
-                                color: connected ? Colors.green : Colors.orange,
+                                color: isOnline ? Colors.green : Colors.orange,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -375,9 +408,11 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
                       ),
                       SizedBox(height: 4.h),
                       Text(
-                        connected
+                        isOnline
                             ? '点击开始对话'
-                            : '在OpenClaw设备上执行安装脚本以完成关联',
+                            : (connection.isPending
+                                ? '请在设备上执行安装脚本'
+                                : '设备已离线'),
                         style: TextStyle(
                           fontSize: 12.sp,
                           color: AppTheme.textSecondaryColor,
@@ -404,7 +439,7 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
   // 未关联时的引导
   Widget _buildOpenClawConnectPrompt(BuildContext context) {
     return InkWell(
-      onTap: () => _showOpenClawSetup(context),
+      onTap: () => context.push('/openclaw/setup').then((_) => _loadOpenClawConnections()),
       borderRadius: BorderRadius.circular(12.r),
       child: Container(
         padding: EdgeInsets.symmetric(vertical: 16.h, horizontal: 14.w),
@@ -423,7 +458,7 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
             SizedBox(width: 10.w),
             Expanded(
               child: Text(
-                '关联我的OpenClaw',
+                '关联我的 OpenClaw',
                 style: TextStyle(
                   fontSize: 14.sp,
                   fontWeight: FontWeight.w500,
@@ -447,10 +482,6 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
         ),
       ),
     );
-  }
-
-  void _showOpenClawSetup(BuildContext context) {
-    context.push('/openclaw/setup').then((_) => _loadOpenClawStatus());
   }
 
   // 空群聊状态

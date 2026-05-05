@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import '../models/openclaw_connection_model.dart';
 import '../models/openclaw_message_model.dart';
 import 'api_service.dart';
 
@@ -8,26 +9,67 @@ class OpenClawService {
 
   OpenClawService(this._api);
 
-  /// 生成关联Token
-  Future<Map<String, dynamic>> generateToken() async {
+  /// 获取所有连接列表
+  Future<List<OpenClawConnectionModel>> getConnections() async {
     try {
-      final response = await _api.post('/openclaw/connect');
+      final response = await _api.get('/openclaw');
+      final List<dynamic> list = response.data['connections'] ?? [];
+      return list
+          .map((e) => OpenClawConnectionModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        throw Exception('登录已过期，请重新登录');
+      }
+      throw Exception('获取连接列表失败: ${e.message}');
+    } catch (e) {
+      throw Exception('获取连接列表失败: $e');
+    }
+  }
+
+  /// 创建新连接（生成Token）
+  Future<Map<String, dynamic>> createConnection({
+    String? name,
+    String? avatar,
+    String? systemPrompt,
+  }) async {
+    try {
+      final response = await _api.post('/openclaw/connect', data: {
+        if (name != null) 'name': name,
+        if (avatar != null) 'avatar': avatar,
+        if (systemPrompt != null) 'systemPrompt': systemPrompt,
+      });
       return response.data as Map<String, dynamic>;
     } on DioException catch (e) {
       if (e.response?.statusCode == 401) {
         throw Exception('登录已过期，请重新登录');
       }
       final msg = e.response?.data?['error'] ?? e.message;
-      throw Exception('生成Token失败: $msg');
+      throw Exception('创建连接失败: $msg');
     } catch (e) {
-      throw Exception('生成Token失败: $e');
+      throw Exception('创建连接失败: $e');
     }
   }
 
-  /// 获取关联状态
-  Future<Map<String, dynamic>> getStatus() async {
+  /// 获取单个连接详情
+  Future<OpenClawConnectionModel> getConnectionDetail(String connectionId) async {
     try {
-      final response = await _api.get('/openclaw/status');
+      final response = await _api.get('/openclaw/$connectionId');
+      return OpenClawConnectionModel.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        throw Exception('登录已过期，请重新登录');
+      }
+      throw Exception('获取连接详情失败: ${e.message}');
+    } catch (e) {
+      throw Exception('获取连接详情失败: $e');
+    }
+  }
+
+  /// 获取单个连接状态
+  Future<Map<String, dynamic>> getConnectionStatus(String connectionId) async {
+    try {
+      final response = await _api.get('/openclaw/$connectionId/status');
       return response.data as Map<String, dynamic>;
     } on DioException catch (e) {
       if (e.response?.statusCode == 401) {
@@ -39,29 +81,53 @@ class OpenClawService {
     }
   }
 
-  /// 解除关联
-  Future<void> disconnect() async {
+  /// 更新连接配置
+  Future<void> updateConnection(
+    String connectionId, {
+    String? name,
+    String? avatar,
+    String? systemPrompt,
+  }) async {
     try {
-      await _api.delete('/openclaw/disconnect');
+      await _api.patch('/openclaw/$connectionId', data: {
+        if (name != null) 'name': name,
+        if (avatar != null) 'avatar': avatar,
+        if (systemPrompt != null) 'systemPrompt': systemPrompt,
+      });
     } on DioException catch (e) {
       if (e.response?.statusCode == 401) {
         throw Exception('登录已过期，请重新登录');
       }
       final msg = e.response?.data?['error'] ?? e.message;
-      throw Exception('解除关联失败: $msg');
+      throw Exception('更新配置失败: $msg');
     } catch (e) {
-      throw Exception('解除关联失败: $e');
+      throw Exception('更新配置失败: $e');
     }
   }
 
-  /// 获取聊天记录
-  Future<List<OpenClawMessageModel>> getMessages() async {
+  /// 删除指定连接
+  Future<void> deleteConnection(String connectionId) async {
     try {
-      final response = await _api.get('/openclaw/messages');
+      await _api.delete('/openclaw/$connectionId');
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        throw Exception('登录已过期，请重新登录');
+      }
+      final msg = e.response?.data?['error'] ?? e.message;
+      throw Exception('删除连接失败: $msg');
+    } catch (e) {
+      throw Exception('删除连接失败: $e');
+    }
+  }
+
+  /// 获取聊天记录（指定连接）
+  Future<List<OpenClawMessageModel>> getMessages(String connectionId) async {
+    try {
+      final response = await _api.get('/openclaw/messages', queryParameters: {
+        'connectionId': connectionId,
+      });
       final List<dynamic> messages = response.data['messages'] ?? [];
-      return messages
-          .map((e) => OpenClawMessageModel.fromJson(e as Map<String, dynamic>))
-          .toList();
+      return messages.map((e) => OpenClawMessageModel.fromJson(e as Map<String, dynamic>)).toList();
     } on DioException catch (e) {
       if (e.response?.statusCode == 401) {
         throw Exception('登录已过期，请重新登录');
@@ -72,10 +138,11 @@ class OpenClawService {
     }
   }
 
-  /// 发送消息
-  Future<OpenClawMessageModel> sendMessage(String content) async {
+  /// 发送消息（指定连接）
+  Future<OpenClawMessageModel> sendMessage(String connectionId, String content) async {
     try {
       final response = await _api.post('/openclaw/messages', data: {
+        'connectionId': connectionId,
         'content': content,
       });
       return OpenClawMessageModel.fromJson(response.data as Map<String, dynamic>);

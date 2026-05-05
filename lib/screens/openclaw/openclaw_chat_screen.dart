@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../models/openclaw_connection_model.dart';
 import '../../models/openclaw_message_model.dart';
 import '../../services/openclaw_service.dart';
 import '../../services/api_service.dart';
@@ -10,7 +12,12 @@ import '../../theme/app_theme.dart';
 
 /// 与 OpenClaw 一对一对话页面
 class OpenClawChatScreen extends ConsumerStatefulWidget {
-  const OpenClawChatScreen({super.key});
+  final String connectionId;
+
+  const OpenClawChatScreen({
+    super.key,
+    required this.connectionId,
+  });
 
   @override
   ConsumerState<OpenClawChatScreen> createState() => _OpenClawChatScreenState();
@@ -23,8 +30,10 @@ class _OpenClawChatScreenState extends ConsumerState<OpenClawChatScreen> {
   bool _isLoading = false;
   bool _isInitLoading = true;
   bool _isConnected = false;
+  OpenClawConnectionModel? _connection;
 
   late final OpenClawService _service;
+  Timer? _pollTimer;
 
   @override
   void initState() {
@@ -33,22 +42,37 @@ class _OpenClawChatScreenState extends ConsumerState<OpenClawChatScreen> {
     _loadData();
   }
 
+  @override
+  void dispose() {
+    _messageController.dispose();
+    _scrollController.dispose();
+    _pollTimer?.cancel();
+    super.dispose();
+  }
+
   Future<void> _loadData() async {
     try {
-      final status = await _service.getStatus();
+      final connection = await _service.getConnectionDetail(widget.connectionId);
+      final status = await _service.getConnectionStatus(widget.connectionId);
       final connected = status['connected'] == true;
 
       List<OpenClawMessageModel> messages = [];
-      if (connected) {
-        messages = await _service.getMessages();
+      if (connected || connection.status == 'connected' || connection.status == 'disconnected') {
+        messages = await _service.getMessages(widget.connectionId);
       }
 
       if (mounted) {
         setState(() {
+          _connection = connection;
           _isConnected = connected;
           _messages.addAll(messages);
           _isInitLoading = false;
         });
+      }
+
+      // 如果连接已建立，启动轮询获取新消息
+      if (connected) {
+        _startPolling();
       }
     } catch (e) {
       if (mounted) {
@@ -57,11 +81,21 @@ class _OpenClawChatScreenState extends ConsumerState<OpenClawChatScreen> {
     }
   }
 
-  @override
-  void dispose() {
-    _messageController.dispose();
-    _scrollController.dispose();
-    super.dispose();
+  void _startPolling() {
+    _pollTimer?.cancel();
+    _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
+      try {
+        final messages = await _service.getMessages(widget.connectionId);
+        if (mounted) {
+          setState(() {
+            _messages.clear();
+            _messages.addAll(messages);
+          });
+        }
+      } catch (e) {
+        // 静默失败
+      }
+    });
   }
 
   Future<void> _sendMessage() async {
@@ -82,12 +116,10 @@ class _OpenClawChatScreenState extends ConsumerState<OpenClawChatScreen> {
     _scrollToBottom();
 
     try {
-      await _service.sendMessage(content);
-      // 消息已发送到后端，OpenClaw 的回复会通过 WebSocket 推送到后端
-      // 前端需要轮询或 SSE 获取新消息
-      // 简化版：直接等待几秒后刷新
+      await _service.sendMessage(widget.connectionId, content);
+      // 等待后刷新消息列表
       await Future.delayed(const Duration(seconds: 2));
-      final messages = await _service.getMessages();
+      final messages = await _service.getMessages(widget.connectionId);
       if (mounted) {
         setState(() {
           _messages.clear();
@@ -121,7 +153,7 @@ class _OpenClawChatScreenState extends ConsumerState<OpenClawChatScreen> {
 
   Future<void> _refreshMessages() async {
     try {
-      final messages = await _service.getMessages();
+      final messages = await _service.getMessages(widget.connectionId);
       if (mounted) {
         setState(() {
           _messages.clear();
@@ -133,8 +165,15 @@ class _OpenClawChatScreenState extends ConsumerState<OpenClawChatScreen> {
     }
   }
 
+  void _goToDetail() {
+    context.push('/openclaw/${widget.connectionId}/edit').then((_) => _loadData());
+  }
+
   @override
   Widget build(BuildContext context) {
+    final displayName = _connection?.displayName ?? '我的OpenClaw';
+    final displayAvatar = _connection?.avatar ?? '🦞';
+
     return Scaffold(
       appBar: AppBar(
         title: Row(
@@ -148,7 +187,7 @@ class _OpenClawChatScreenState extends ConsumerState<OpenClawChatScreen> {
               ),
               child: Center(
                 child: Text(
-                  '🦞',
+                  displayAvatar,
                   style: TextStyle(fontSize: 20.sp),
                 ),
               ),
@@ -160,7 +199,7 @@ class _OpenClawChatScreenState extends ConsumerState<OpenClawChatScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    '我的OpenClaw',
+                    displayName,
                     style: TextStyle(fontSize: 16.sp),
                   ),
                   Row(
@@ -191,6 +230,10 @@ class _OpenClawChatScreenState extends ConsumerState<OpenClawChatScreen> {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: _goToDetail,
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _refreshMessages,
           ),
@@ -210,7 +253,7 @@ class _OpenClawChatScreenState extends ConsumerState<OpenClawChatScreen> {
                   SizedBox(width: 8.w),
                   Expanded(
                     child: Text(
-                      'OpenClaw 未连接，请在群聊页面完成关联',
+                      'OpenClaw 未连接，请检查设备状态',
                       style: TextStyle(fontSize: 13.sp, color: Colors.orange.shade800),
                     ),
                   ),
@@ -223,14 +266,21 @@ class _OpenClawChatScreenState extends ConsumerState<OpenClawChatScreen> {
             child: _isInitLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _messages.isEmpty
-                    ? _EmptyState(isConnected: _isConnected)
+                    ? _EmptyState(
+                        isConnected: _isConnected,
+                        displayName: displayName,
+                        displayAvatar: displayAvatar,
+                      )
                     : ListView.builder(
                         controller: _scrollController,
                         padding: EdgeInsets.all(16.w),
                         itemCount: _messages.length,
                         itemBuilder: (context, index) {
                           final message = _messages[index];
-                          return _ChatBubble(message: message);
+                          return _ChatBubble(
+                            message: message,
+                            assistantAvatar: displayAvatar,
+                          );
                         },
                       ),
           ),
@@ -249,7 +299,7 @@ class _OpenClawChatScreenState extends ConsumerState<OpenClawChatScreen> {
                   ),
                   SizedBox(width: 8.w),
                   Text(
-                    'OpenClaw 思考中...',
+                    '$displayName 思考中...',
                     style: TextStyle(
                       fontSize: 12.sp,
                       color: AppTheme.textSecondaryColor,
@@ -281,7 +331,7 @@ class _OpenClawChatScreenState extends ConsumerState<OpenClawChatScreen> {
                       enabled: _isConnected,
                       decoration: InputDecoration(
                         hintText: _isConnected
-                            ? '给 OpenClaw 发消息...'
+                            ? '给 $displayName 发消息...'
                             : '请先关联 OpenClaw',
                         filled: true,
                         fillColor: AppTheme.backgroundColor,
@@ -315,8 +365,14 @@ class _OpenClawChatScreenState extends ConsumerState<OpenClawChatScreen> {
 
 class _EmptyState extends StatelessWidget {
   final bool isConnected;
+  final String displayName;
+  final String displayAvatar;
 
-  const _EmptyState({required this.isConnected});
+  const _EmptyState({
+    required this.isConnected,
+    required this.displayName,
+    required this.displayAvatar,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -327,12 +383,12 @@ class _EmptyState extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              '🦞',
+              displayAvatar,
               style: TextStyle(fontSize: 48.sp),
             ),
             SizedBox(height: 16.h),
             Text(
-              '我的 OpenClaw',
+              displayName,
               style: TextStyle(
                 fontSize: 18.sp,
                 fontWeight: FontWeight.w600,
@@ -341,8 +397,8 @@ class _EmptyState extends StatelessWidget {
             SizedBox(height: 8.h),
             Text(
               isConnected
-                  ? '开始和你的 OpenClaw 对话吧'
-                  : '关联后，在这里和 OpenClaw 一对一对话',
+                  ? '开始和 $displayName 对话吧'
+                  : '关联后，在这里和 $displayName 一对一对话',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14.sp,
@@ -358,8 +414,12 @@ class _EmptyState extends StatelessWidget {
 
 class _ChatBubble extends StatelessWidget {
   final OpenClawMessageModel message;
+  final String assistantAvatar;
 
-  const _ChatBubble({required this.message});
+  const _ChatBubble({
+    required this.message,
+    required this.assistantAvatar,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -386,7 +446,7 @@ class _ChatBubble extends StatelessWidget {
                 ),
                 child: Center(
                   child: Text(
-                    '🦞',
+                    assistantAvatar,
                     style: TextStyle(fontSize: 18.sp),
                   ),
                 ),

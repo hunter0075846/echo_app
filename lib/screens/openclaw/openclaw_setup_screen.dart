@@ -10,7 +10,9 @@ import '../../theme/app_theme.dart';
 
 /// OpenClaw 关联引导页面
 class OpenClawSetupScreen extends StatefulWidget {
-  const OpenClawSetupScreen({super.key});
+  final String? connectionId;
+
+  const OpenClawSetupScreen({super.key, this.connectionId});
 
   @override
   State<OpenClawSetupScreen> createState() => _OpenClawSetupScreenState();
@@ -19,23 +21,80 @@ class OpenClawSetupScreen extends StatefulWidget {
 class _OpenClawSetupScreenState extends State<OpenClawSetupScreen> {
   final OpenClawService _service = OpenClawService(ApiService());
 
+  final _nameController = TextEditingController();
+  final _avatarController = TextEditingController();
+  final _systemPromptController = TextEditingController();
+
   bool _isLoading = true;
   bool _hasError = false;
   String? _token;
   String? _installScript;
   String _status = 'none';
+  String? _connectionId;
   Timer? _pollTimer;
 
   @override
   void initState() {
     super.initState();
-    _init();
+    if (widget.connectionId != null) {
+      // 已有连接，加载其状态（用于重新生成 token 后展示）
+      _connectionId = widget.connectionId;
+      _loadConnection();
+    } else {
+      // 新建连接模式：先展示表单
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
   void dispose() {
     _pollTimer?.cancel();
+    _nameController.dispose();
+    _avatarController.dispose();
+    _systemPromptController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadConnection() async {
+    setState(() {
+      _isLoading = true;
+      _hasError = false;
+    });
+
+    try {
+      final connection = await _service.getConnectionDetail(widget.connectionId!);
+      _connectionId = connection.id;
+      _status = connection.status;
+      _nameController.text = connection.name ?? '';
+      _avatarController.text = connection.avatar ?? '';
+      _systemPromptController.text = connection.systemPrompt ?? '';
+
+      if (_status == 'pending') {
+        // 一并获取 token 和 installScript，避免 loading 结束后闪现表单
+        try {
+          final statusResult = await _service.getConnectionStatus(widget.connectionId!);
+          _token = statusResult['token'] as String?;
+          _installScript = statusResult['installScript'] as String?;
+        } catch (_) {
+          // 静默失败
+        }
+      }
+
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+
+      if (_status == 'pending') {
+        _startPolling();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _hasError = true;
+        });
+      }
+    }
   }
 
   Future<void> _init() async {
@@ -45,7 +104,13 @@ class _OpenClawSetupScreenState extends State<OpenClawSetupScreen> {
     });
 
     try {
-      final result = await _service.generateToken();
+      final result = await _service.createConnection(
+        name: _nameController.text.trim().isEmpty ? null : _nameController.text.trim(),
+        avatar: _avatarController.text.trim().isEmpty ? null : _avatarController.text.trim(),
+        systemPrompt: _systemPromptController.text.trim().isEmpty ? null : _systemPromptController.text.trim(),
+      );
+
+      _connectionId = result['id'] as String?;
       _token = result['token'] as String?;
       _installScript = result['installScript'] as String?;
       _status = result['status'] as String? ?? 'pending';
@@ -56,8 +121,6 @@ class _OpenClawSetupScreenState extends State<OpenClawSetupScreen> {
 
       if (_status == 'pending') {
         _startPolling();
-      } else if (_status == 'connected') {
-        _goToChat();
       }
     } catch (e) {
       if (mounted) {
@@ -72,8 +135,9 @@ class _OpenClawSetupScreenState extends State<OpenClawSetupScreen> {
   void _startPolling() {
     _pollTimer?.cancel();
     _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
+      if (_connectionId == null) return;
       try {
-        final status = await _service.getStatus();
+        final status = await _service.getConnectionStatus(_connectionId!);
         final newStatus = status['status'] as String? ?? 'none';
         final connected = status['connected'] == true;
 
@@ -83,18 +147,16 @@ class _OpenClawSetupScreenState extends State<OpenClawSetupScreen> {
 
         if (connected) {
           _pollTimer?.cancel();
-          _goToChat();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('OpenClaw 已连接')),
+            );
+          }
         }
       } catch (e) {
         // 轮询失败静默处理
       }
     });
-  }
-
-  void _goToChat() {
-    if (mounted) {
-      context.replace('/openclaw/chat');
-    }
   }
 
   Future<void> _copyScript() async {
@@ -117,54 +179,11 @@ class _OpenClawSetupScreenState extends State<OpenClawSetupScreen> {
     }
   }
 
-  Future<void> _disconnect() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('解除关联'),
-        content: const Text('确定要解除与 OpenClaw 的关联吗？'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('解除', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm != true) return;
-
-    try {
-      await _service.disconnect();
-      if (mounted) {
-        _pollTimer?.cancel();
-        _init();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('解除关联失败: $e')),
-        );
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('关联 OpenClaw'),
-        actions: [
-          if (_status == 'connected')
-            TextButton(
-              onPressed: _disconnect,
-              child: const Text('解除关联', style: TextStyle(color: Colors.red)),
-            ),
-        ],
+        title: Text(widget.connectionId != null ? '重新关联' : '关联 OpenClaw'),
       ),
       body: _buildBody(),
     );
@@ -196,11 +215,76 @@ class _OpenClawSetupScreenState extends State<OpenClawSetupScreen> {
       );
     }
 
-    if (_status == 'connected') {
-      return _buildConnectedState();
+    // 如果还没有生成 token（新建模式），先显示表单
+    if (_token == null) {
+      return _buildForm();
     }
 
+    // 已生成 token，显示关联步骤
     return _buildSetupSteps();
+  }
+
+  Widget _buildForm() {
+    return SingleChildScrollView(
+      padding: EdgeInsets.all(20.w),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '新建 OpenClaw 连接',
+            style: TextStyle(
+              fontSize: 22.sp,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.textPrimaryColor,
+            ),
+          ),
+          SizedBox(height: 8.h),
+          Text(
+            '为连接设置个性化信息（可选）',
+            style: TextStyle(
+              fontSize: 14.sp,
+              color: AppTheme.textSecondaryColor,
+            ),
+          ),
+          SizedBox(height: 24.h),
+
+          _buildTextField(
+            label: '名称',
+            hint: '例如：家里的小龙虾、工作助手',
+            controller: _nameController,
+          ),
+          SizedBox(height: 16.h),
+
+          _buildTextField(
+            label: '头像',
+            hint: '输入一个 emoji，例如：🦞 🤖 🐱',
+            controller: _avatarController,
+          ),
+          SizedBox(height: 16.h),
+
+          _buildTextField(
+            label: '系统提示词',
+            hint: '描述这个 OpenClaw 的角色和行为',
+            controller: _systemPromptController,
+            maxLines: 3,
+          ),
+
+          SizedBox(height: 32.h),
+
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _init,
+              icon: const Icon(Icons.link, size: 18),
+              label: const Text('生成关联 Token'),
+              style: ElevatedButton.styleFrom(
+                padding: EdgeInsets.symmetric(vertical: 14.h),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildSetupSteps() {
@@ -243,19 +327,14 @@ class _OpenClawSetupScreenState extends State<OpenClawSetupScreen> {
                     color: const Color(0xFF1E1E1E),
                     borderRadius: BorderRadius.circular(10.r),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SelectableText(
-                        _installScript ?? '',
-                        style: TextStyle(
-                          fontSize: 13.sp,
-                          color: const Color(0xFFD4D4D4),
-                          fontFamily: 'monospace',
-                          height: 1.5,
-                        ),
-                      ),
-                    ],
+                  child: SelectableText(
+                    _installScript ?? '',
+                    style: TextStyle(
+                      fontSize: 13.sp,
+                      color: const Color(0xFFD4D4D4),
+                      fontFamily: 'monospace',
+                      height: 1.5,
+                    ),
                   ),
                 ),
                 SizedBox(height: 10.h),
@@ -318,7 +397,6 @@ class _OpenClawSetupScreenState extends State<OpenClawSetupScreen> {
                     ),
                   ),
                   SizedBox(height: 16.h),
-                  // Token 信息（可展开）
                   _buildTokenSection(),
                 ],
               ),
@@ -494,62 +572,42 @@ class _OpenClawSetupScreenState extends State<OpenClawSetupScreen> {
     );
   }
 
-  Widget _buildConnectedState() {
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.all(32.w),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 80.w,
-              height: 80.w,
-              decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: Icon(
-                  Icons.check,
-                  size: 40.w,
-                  color: Colors.green,
-                ),
-              ),
-            ),
-            SizedBox(height: 24.h),
-            Text(
-              'OpenClaw 已连接',
-              style: TextStyle(
-                fontSize: 20.sp,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textPrimaryColor,
-              ),
-            ),
-            SizedBox(height: 8.h),
-            Text(
-              '你的 OpenClaw 已成功关联到回响',
-              style: TextStyle(
-                fontSize: 14.sp,
-                color: AppTheme.textSecondaryColor,
-              ),
-            ),
-            SizedBox(height: 32.h),
-            ElevatedButton.icon(
-              onPressed: _goToChat,
-              icon: const Icon(Icons.chat, size: 20),
-              label: const Text('开始对话'),
-              style: ElevatedButton.styleFrom(
-                padding: EdgeInsets.symmetric(horizontal: 32.w, vertical: 14.h),
-              ),
-            ),
-            SizedBox(height: 16.h),
-            TextButton(
-              onPressed: _disconnect,
-              child: const Text('解除关联', style: TextStyle(color: Colors.red)),
-            ),
-          ],
+  Widget _buildTextField({
+    required String label,
+    required String hint,
+    required TextEditingController controller,
+    int maxLines = 1,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 14.sp,
+            fontWeight: FontWeight.w500,
+            color: AppTheme.textPrimaryColor,
+          ),
         ),
-      ),
+        SizedBox(height: 8.h),
+        TextField(
+          controller: controller,
+          maxLines: maxLines,
+          decoration: InputDecoration(
+            hintText: hint,
+            filled: true,
+            fillColor: AppTheme.backgroundColor,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10.r),
+              borderSide: BorderSide.none,
+            ),
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: 14.w,
+              vertical: 12.h,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
