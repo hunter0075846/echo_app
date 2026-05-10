@@ -118,8 +118,7 @@ class _OpenClawChatScreenState extends ConsumerState<OpenClawChatScreen> {
 
     try {
       await _service.sendMessage(widget.connectionId, content);
-      // 等待后刷新消息列表
-      await Future.delayed(const Duration(seconds: 2));
+      // 发送成功后立即刷新消息列表，不必等待 2 秒
       final messages = await _service.getMessages(widget.connectionId);
       if (mounted) {
         setState(() {
@@ -127,6 +126,10 @@ class _OpenClawChatScreenState extends ConsumerState<OpenClawChatScreen> {
           _messages.addAll(messages);
           _isLoading = false;
         });
+      }
+      // 若轮询未启动则启动（发送后大概率会有回复）
+      if (_pollTimer == null || !_pollTimer!.isActive) {
+        _startPolling();
       }
     } catch (e) {
       if (mounted) {
