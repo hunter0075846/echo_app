@@ -32,10 +32,15 @@ jobs:
           else
             VERSION="${GITHUB_REF#refs/tags/v}"
           fi
-          # 同步 pubspec.yaml 版本号到 tag 版本
-          sed -i "s/^version: .*/version: ${VERSION}+1/" pubspec.yaml
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "构建版本: $VERSION"
+          # 从 pubspec.yaml 读取原始 build number
+          ORIGINAL_BUILD=$(grep "^version:" pubspec.yaml | sed 's/.*+//' | tr -d ' ')
+          if [ -z "$ORIGINAL_BUILD" ]; then
+            ORIGINAL_BUILD="1"
+          fi
+          # 同步 pubspec.yaml 版本号到 tag 版本，保留原始 build number
+          sed -i "s/^version: .*/version: ${VERSION}+${ORIGINAL_BUILD}/" pubspec.yaml
+          echo "version=${VERSION}+${ORIGINAL_BUILD}" >> "$GITHUB_OUTPUT"
+          echo "构建版本: ${VERSION}+${ORIGINAL_BUILD}"
 
       - name: Get dependencies
         run: flutter pub get
@@ -47,10 +52,12 @@ jobs:
         run: |
           mkdir -p deploy
           cp build/app/outputs/flutter-apk/app-release.apk deploy/echo-latest.apk
+          # 获取完整版本号（包含 build number）
+          FULL_VERSION=$(grep "^version:" pubspec.yaml | sed 's/version: //' | tr -d ' ')
           cat > deploy/version.json << EOF
           {
-            "latestVersion": "${{ steps.version.outputs.version }}",
-            "minVersion": "${{ steps.version.outputs.version }}",
+            "latestVersion": "${FULL_VERSION}",
+            "minVersion": "${FULL_VERSION}",
             "downloadUrl": "https://api.wudiclaw.cloud/app/echo-latest.apk",
             "releaseNotes": "修复已知问题，优化使用体验"
           }

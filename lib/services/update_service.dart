@@ -4,6 +4,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../config/app_config.dart';
+import 'app_service.dart';
 import 'log_service.dart';
 
 class UpdateService {
@@ -56,20 +57,8 @@ class UpdateService {
   /// 比较版本号，返回 true 表示需要更新
   static bool _shouldUpdate(String current, String latest) {
     try {
-      // 去掉 +buildNumber 后缀
-      final currentClean = current.split('+').first;
-      final latestClean = latest.split('+').first;
-      final currentParts = currentClean.split('.').map(int.parse).toList();
-      final latestParts = latestClean.split('.').map(int.parse).toList();
-
-      for (int i = 0; i < latestParts.length; i++) {
-        final currentPart = i < currentParts.length ? currentParts[i] : 0;
-        final latestPart = latestParts[i];
-
-        if (latestPart > currentPart) return true;
-        if (latestPart < currentPart) return false;
-      }
-      return false;
+      // 使用统一的版本比较逻辑
+      return AppService.compareVersion(current, latest) < 0;
     } catch (_) {
       // 解析失败时按字符串比较
       return latest != current;

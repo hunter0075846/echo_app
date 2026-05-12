@@ -43,8 +43,12 @@ class AppService {
   /// 比较两个版本号
   /// 返回值: -1 表示 v1 < v2, 0 表示相等, 1 表示 v1 > v2
   static int compareVersion(String v1, String v2) {
-    final parts1 = v1.split('.').map(int.parse).toList();
-    final parts2 = v2.split('.').map(int.parse).toList();
+    // 去掉 +buildNumber 后缀，只比较主版本号
+    final cleanV1 = v1.split('+').first;
+    final cleanV2 = v2.split('+').first;
+    
+    final parts1 = cleanV1.split('.').map(int.parse).toList();
+    final parts2 = cleanV2.split('.').map(int.parse).toList();
     final maxLen = parts1.length > parts2.length ? parts1.length : parts2.length;
 
     for (int i = 0; i < maxLen; i++) {
