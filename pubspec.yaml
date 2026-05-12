@@ -1,7 +1,7 @@
 name: echo_app
 description: 回响 - AI驱动的热门话题广场
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.3+3
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
