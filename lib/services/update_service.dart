@@ -1,28 +1,22 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../config/app_config.dart';
+import 'api_service.dart';
 import 'app_service.dart';
 import 'log_service.dart';
 
 class UpdateService {
-  static final Dio _dio = Dio(BaseOptions(
-    baseUrl: AppConfig.apiBaseUrl,
-    connectTimeout: const Duration(seconds: 10),
-    receiveTimeout: const Duration(seconds: 10),
-  ));
+  static final ApiService _api = ApiService();
 
   /// 检查更新，返回需要更新的信息或 null
   static Future<UpdateInfo?> checkUpdate() async {
-    // 调试模式下不检查更新，避免 debug 包版本号与 release 不一致导致反复弹窗
     if (kDebugMode) {
       return null;
     }
 
     try {
-      final response = await _dio.get('/app/version');
+      final response = await _api.get('/app/version');
       final data = response.data as Map<String, dynamic>;
 
       final packageInfo = await PackageInfo.fromPlatform();
