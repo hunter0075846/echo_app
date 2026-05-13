@@ -19,19 +19,26 @@ android {
         jvmTarget = JavaVersion.VERSION_17.toString()
     }
 
-    def flutterVersion = flutter.rootProject.file("pubspec.yaml").text
-def versionMatch = flutterVersion =~ /version:\s*(\d+)\.(\d+)\.(\d+)\+(\d+)/
-def major = versionMatch[0][1].toInteger()
-def minor = versionMatch[0][2].toInteger()
-def patch = versionMatch[0][3].toInteger()
-def build = versionMatch[0][4].toInteger()
-
-defaultConfig {
+    defaultConfig {
         applicationId = "com.example.echo_app"
         minSdk = flutter.minSdkVersion
         targetSdk = 36
-        versionCode = major * 10000 + minor * 100 + patch * 10 + build
-        versionName = "${major}.${minor}.${patch}+${build}"
+        // 版本号从 pubspec.yaml 读取
+        val pubspecContent = flutter.rootProject.file("pubspec.yaml").readText()
+        val versionRegex = Regex("version:\\s*(\\d+)\\.(\\d+)\\.(\\d+)\\+(\\d+)")
+        val matchResult = versionRegex.find(pubspecContent)
+        versionCode = if (matchResult != null) {
+            val (major, minor, patch, build) = matchResult.destructured
+            major.toInt() * 10000 + minor.toInt() * 100 + patch.toInt() * 10 + build.toInt()
+        } else {
+            1
+        }
+        versionName = if (matchResult != null) {
+            val (major, minor, patch, build) = matchResult.destructured
+            "$major.$minor.$patch+$build"
+        } else {
+            "1.0.0+1"
+        }
     }
 
     buildTypes {
