@@ -23,22 +23,8 @@ android {
         applicationId = "com.example.echo_app"
         minSdk = flutter.minSdkVersion
         targetSdk = 36
-        // 版本号从 pubspec.yaml 读取
-        val pubspecContent = flutter.rootProject.file("pubspec.yaml").readText()
-        val versionRegex = Regex("version:\\s*(\\d+)\\.(\\d+)\\.(\\d+)\\+(\\d+)")
-        val matchResult = versionRegex.find(pubspecContent)
-        versionCode = if (matchResult != null) {
-            val (major, minor, patch, build) = matchResult.destructured
-            major.toInt() * 10000 + minor.toInt() * 100 + patch.toInt() * 10 + build.toInt()
-        } else {
-            1
-        }
-        versionName = if (matchResult != null) {
-            val (major, minor, patch, build) = matchResult.destructured
-            "$major.$minor.$patch+$build"
-        } else {
-            "1.0.0+1"
-        }
+        // Flutter 会自动从 pubspec.yaml 读取版本号
+        // versionCode 和 versionName 由 flutter.gradle 自动设置
     }
 
     buildTypes {
