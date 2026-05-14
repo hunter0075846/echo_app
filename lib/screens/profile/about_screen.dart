@@ -182,24 +182,35 @@ class _AboutScreenState extends State<AboutScreen> {
 
   Widget _buildUpdateStatus() {
     if (_updateError.isNotEmpty) {
-      return Row(
+      return Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.error_outline, size: 16.w, color: AppTheme.textTertiaryColor),
-          SizedBox(width: 4.w),
-          Text(
-            '检查更新失败',
-            style: TextStyle(fontSize: 13.sp, color: AppTheme.textTertiaryColor),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, size: 16.w, color: AppTheme.textTertiaryColor),
+              SizedBox(width: 4.w),
+              Text(
+                '检查更新失败',
+                style: TextStyle(fontSize: 13.sp, color: AppTheme.textTertiaryColor),
+              ),
+              SizedBox(width: 8.w),
+              TextButton(
+                onPressed: _loadVersionAndCheckUpdate,
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text('重试', style: TextStyle(fontSize: 13.sp)),
+              ),
+            ],
           ),
-          SizedBox(width: 8.w),
-          TextButton(
-            onPressed: _loadVersionAndCheckUpdate,
-            style: TextButton.styleFrom(
-              padding: EdgeInsets.zero,
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            child: Text('重试', style: TextStyle(fontSize: 13.sp)),
+          SizedBox(height: 4.h),
+          Text(
+            _updateError,
+            style: TextStyle(fontSize: 11.sp, color: AppTheme.textTertiaryColor),
+            textAlign: TextAlign.center,
           ),
         ],
       );
