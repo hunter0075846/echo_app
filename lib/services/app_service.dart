@@ -43,9 +43,15 @@ class AppService {
   /// 比较两个版本号
   /// 返回值: -1 表示 v1 < v2, 0 表示相等, 1 表示 v1 > v2
   static int compareVersion(String v1, String v2) {
+    // 去掉可能的 v 前缀（如 v1.0.5 -> 1.0.5）
+    String cleanV1 = v1.trim().toLowerCase();
+    String cleanV2 = v2.trim().toLowerCase();
+    if (cleanV1.startsWith('v')) cleanV1 = cleanV1.substring(1);
+    if (cleanV2.startsWith('v')) cleanV2 = cleanV2.substring(1);
+    
     // 去掉 +buildNumber 后缀，只比较主版本号
-    final cleanV1 = v1.split('+').first;
-    final cleanV2 = v2.split('+').first;
+    cleanV1 = cleanV1.split('+').first;
+    cleanV2 = cleanV2.split('+').first;
     
     final parts1 = cleanV1.split('.').map(int.parse).toList();
     final parts2 = cleanV2.split('.').map(int.parse).toList();

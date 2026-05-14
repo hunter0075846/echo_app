@@ -24,7 +24,10 @@ class UpdateService {
       final latestVersion = data['latestVersion'] as String;
       final minVersion = data['minVersion'] as String;
 
-      if (!_shouldUpdate(currentVersion, latestVersion)) {
+      final hasNewVersion = _shouldUpdate(currentVersion, latestVersion);
+      final isForceUpdate = _shouldUpdate(currentVersion, minVersion);
+
+      if (!hasNewVersion && !isForceUpdate) {
         return null;
       }
 
@@ -32,7 +35,7 @@ class UpdateService {
         latestVersion: latestVersion,
         downloadUrl: data['downloadUrl'] as String,
         releaseNotes: data['releaseNotes'] as String,
-        isForce: _shouldUpdate(currentVersion, minVersion),
+        isForce: isForceUpdate,
       );
     } catch (e) {
       logService.error('UpdateService', '版本检查失败', error: e);
