@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import 'router/app_router.dart';
+import 'screens/update/force_update_screen.dart';
 import 'services/auth_service.dart';
 import 'services/log_service.dart';
 import 'services/update_service.dart';
@@ -18,11 +19,52 @@ void main() async {
   // 启动时同步等待登录态恢复，避免首屏路由竞态
   await AuthService().init();
 
-  runApp(
-    const ProviderScope(
-      child: EchoApp(),
-    ),
-  );
+  final updateInfo = await UpdateService.checkUpdate();
+
+  if (updateInfo != null && updateInfo.isForce) {
+    runApp(ForceUpdateApp(info: updateInfo));
+  } else {
+    runApp(
+      const ProviderScope(
+        child: EchoApp(),
+      ),
+    );
+  }
+}
+
+class ForceUpdateApp extends StatelessWidget {
+  final UpdateInfo info;
+
+  const ForceUpdateApp({super.key, required this.info});
+
+  @override
+  Widget build(BuildContext context) {
+    Widget app = ScreenUtilInit(
+      designSize: const Size(375, 812),
+      minTextAdapt: true,
+      splitScreenMode: true,
+      useInheritedMediaQuery: true,
+      builder: (context, child) {
+        return MaterialApp(
+          title: '回响',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: ThemeMode.system,
+          home: ForceUpdateScreen(info: info),
+        );
+      },
+    );
+
+    if (kIsWeb) {
+      app = MediaQuery(
+        data: const MediaQueryData(size: Size(375, 812)),
+        child: app,
+      );
+    }
+
+    return app;
+  }
 }
 
 class EchoApp extends ConsumerWidget {

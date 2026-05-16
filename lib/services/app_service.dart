@@ -66,13 +66,35 @@ class AppService {
     return 0;
   }
 
-  /// 是否需要强制更新（当前版本低于最低支持版本）
-  static bool isForceUpdate(String currentVersion, String minVersion) {
-    return compareVersion(currentVersion, minVersion) < 0;
-  }
-
   /// 是否有新版本
   static bool hasNewVersion(String currentVersion, String latestVersion) {
     return compareVersion(currentVersion, latestVersion) < 0;
+  }
+
+  /// 是否为 major/minor 升级（x.y 任一变化即视为大版本升级，需要强制更新）
+  static bool isMajorMinorUpgrade(String currentVersion, String latestVersion) {
+    if (!hasNewVersion(currentVersion, latestVersion)) {
+      return false;
+    }
+
+    String c = currentVersion.trim().toLowerCase();
+    String l = latestVersion.trim().toLowerCase();
+    if (c.startsWith('v')) c = c.substring(1);
+    if (l.startsWith('v')) l = l.substring(1);
+    c = c.split('+').first;
+    l = l.split('+').first;
+
+    final cParts = c.split('.');
+    final lParts = l.split('.');
+
+    final cMajor = int.tryParse(cParts[0]) ?? 0;
+    final lMajor = int.tryParse(lParts[0]) ?? 0;
+    if (cMajor != lMajor) return true;
+
+    final cMinor = cParts.length > 1 ? int.tryParse(cParts[1]) ?? 0 : 0;
+    final lMinor = lParts.length > 1 ? int.tryParse(lParts[1]) ?? 0 : 0;
+    if (cMinor != lMinor) return true;
+
+    return false;
   }
 }

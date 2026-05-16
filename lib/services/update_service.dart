@@ -22,12 +22,11 @@ class UpdateService {
       final packageInfo = await PackageInfo.fromPlatform();
       final currentVersion = packageInfo.version;
       final latestVersion = data['latestVersion'] as String;
-      final minVersion = data['minVersion'] as String;
 
       final hasNewVersion = _shouldUpdate(currentVersion, latestVersion);
-      final isForceUpdate = _shouldUpdate(currentVersion, minVersion);
+      final isForceUpdate = AppService.isMajorMinorUpgrade(currentVersion, latestVersion);
 
-      if (!hasNewVersion && !isForceUpdate) {
+      if (!hasNewVersion) {
         return null;
       }
 

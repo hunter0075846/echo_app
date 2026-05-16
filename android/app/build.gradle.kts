@@ -4,6 +4,12 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// 从 pubspec.yaml 解析版本号（Kotlin DSL 不会自动注入）
+val pubspec = rootProject.file("../pubspec.yaml").readText()
+val versionMatch = Regex("""version:\s*([^\s+]+)\+(\d+)""").find(pubspec)
+val flutterVersionName = versionMatch?.groupValues?.get(1) ?: "1.0.0"
+val flutterVersionCode = versionMatch?.groupValues?.get(2)?.toInt() ?: 1
+
 android {
     namespace = "com.example.echo_app"
     compileSdk = 36
@@ -23,8 +29,8 @@ android {
         applicationId = "com.example.echo_app"
         minSdk = flutter.minSdkVersion
         targetSdk = 36
-        // Flutter 会自动从 pubspec.yaml 读取版本号
-        // versionCode 和 versionName 由 flutter.gradle 自动设置
+        versionCode = flutterVersionCode
+        versionName = flutterVersionName
     }
 
     buildTypes {
