@@ -153,7 +153,7 @@ class _AboutScreenState extends State<AboutScreen> {
                     leading: const Icon(Icons.description_outlined),
                     title: const Text('用户协议'),
                     trailing: const Icon(Icons.chevron_right),
-                    onTap: () => _launchUrl('https://echo.app/terms'),
+                    onTap: () => _launchUrl('https://api.wudiclaw.cloud/terms'),
                   ),
                   const Divider(height: 1),
                   ListTile(
