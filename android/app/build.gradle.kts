@@ -27,9 +27,25 @@ android {
         // versionCode 和 versionName 由 flutter.gradle 自动设置
     }
 
+    // 签名配置
+    signingConfigs {
+        create("release") {
+            // 从环境变量或本地文件读取签名信息
+            val keystorePath = System.getenv("KEYSTORE_PATH") ?: "release-keystore.jks"
+            val keystorePassword = System.getenv("KEYSTORE_PASSWORD") ?: ""
+            val keyAlias = System.getenv("KEY_ALIAS") ?: "release"
+            val keyPassword = System.getenv("KEY_PASSWORD") ?: ""
+
+            storeFile = file(keystorePath)
+            storePassword = keystorePassword
+            this.keyAlias = keyAlias
+            this.keyPassword = keyPassword
+        }
+    }
+
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 }
