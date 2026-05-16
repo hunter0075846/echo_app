@@ -13,7 +13,7 @@ class UpdateDialog extends StatelessWidget {
     return PopScope(
       canPop: !info.isForce,
       child: AlertDialog(
-        title: Text('发现新版本 v${info.latestVersion}'),
+        title: Text('发现新版本 ${info.latestVersion}'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
