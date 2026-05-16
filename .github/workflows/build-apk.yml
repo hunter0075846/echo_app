@@ -42,24 +42,10 @@ jobs:
           echo "version=${VERSION}+${ORIGINAL_BUILD}" >> "$GITHUB_OUTPUT"
           echo "构建版本: ${VERSION}+${ORIGINAL_BUILD}"
 
-      - name: Setup signing keystore
-        run: |
-          # 从 GitHub Secrets 解码签名密钥
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/release-keystore.jks
-          # 验证密钥文件
-          ls -lh android/app/release-keystore.jks
-          # 验证密钥文件是否有效
-          keytool -list -v -keystore android/app/release-keystore.jks -storepass ${{ secrets.KEYSTORE_PASSWORD }} -alias ${{ secrets.KEY_ALIAS }} || echo "密钥验证失败"
-
       - name: Get dependencies
         run: flutter pub get
 
       - name: Build APK
-        env:
-          KEYSTORE_PATH: release-keystore.jks
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           cd android
           flutter build apk --release

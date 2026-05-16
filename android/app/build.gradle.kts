@@ -27,29 +27,10 @@ android {
         // versionCode 和 versionName 由 flutter.gradle 自动设置
     }
 
-    // 签名配置
-    signingConfigs {
-        create("release") {
-            // 从环境变量读取签名信息
-            val keystorePath = System.getenv("KEYSTORE_PATH") ?: "release-keystore.jks"
-            val keystorePassword = System.getenv("KEYSTORE_PASSWORD") ?: ""
-            val keyAlias = System.getenv("KEY_ALIAS") ?: "release"
-            val keyPassword = System.getenv("KEY_PASSWORD") ?: ""
-
-            storeFile = file(keystorePath)
-            storePassword = keystorePassword
-            this.keyAlias = keyAlias
-            this.keyPassword = keyPassword
-            
-            // 启用 v1 签名以兼容旧设备
-            enableV1Signing = true
-            enableV2Signing = true
-        }
-    }
-
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
+            // 使用默认签名配置，不强制验证
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 }
