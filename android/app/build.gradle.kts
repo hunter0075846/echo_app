@@ -30,7 +30,7 @@ android {
     // 签名配置
     signingConfigs {
         create("release") {
-            // 从环境变量或本地文件读取签名信息
+            // 从环境变量读取签名信息
             val keystorePath = System.getenv("KEYSTORE_PATH") ?: "release-keystore.jks"
             val keystorePassword = System.getenv("KEYSTORE_PASSWORD") ?: ""
             val keyAlias = System.getenv("KEY_ALIAS") ?: "release"
@@ -40,6 +40,10 @@ android {
             storePassword = keystorePassword
             this.keyAlias = keyAlias
             this.keyPassword = keyPassword
+            
+            // 启用 v1 签名以兼容旧设备
+            enableV1Signing = true
+            enableV2Signing = true
         }
     }
 

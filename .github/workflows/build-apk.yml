@@ -45,9 +45,11 @@ jobs:
       - name: Setup signing keystore
         run: |
           # 从 GitHub Secrets 解码签名密钥
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/release-keystore.jks
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/release-keystore.jks
           # 验证密钥文件
           ls -lh android/app/release-keystore.jks
+          # 验证密钥文件是否有效
+          keytool -list -v -keystore android/app/release-keystore.jks -storepass ${{ secrets.KEYSTORE_PASSWORD }} -alias ${{ secrets.KEY_ALIAS }} || echo "密钥验证失败"
 
       - name: Get dependencies
         run: flutter pub get
