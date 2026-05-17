@@ -253,7 +253,7 @@ class _AgentChatScreenState extends ConsumerState<AgentChatScreen> {
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 10,
                   offset: const Offset(0, -5),
                 ),
@@ -314,7 +314,7 @@ class _EmptyChatState extends StatelessWidget {
               width: 64.w,
               height: 64.w,
               decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withOpacity(0.1),
+                color: AppTheme.primaryColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(16.r),
               ),
               child: Center(
@@ -415,8 +415,8 @@ class _ChatBubble extends StatelessWidget {
                 height: 36.w,
                 decoration: BoxDecoration(
                   color: message.isError
-                      ? AppTheme.errorColor.withOpacity(0.1)
-                      : AppTheme.primaryColor.withOpacity(0.1),
+                      ? AppTheme.errorColor.withValues(alpha: 0.1)
+                      : AppTheme.primaryColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10.r),
                 ),
                 child: Center(
@@ -445,13 +445,13 @@ class _ChatBubble extends StatelessWidget {
                   color: message.isUser
                       ? AppTheme.primaryColor
                       : message.isError
-                          ? AppTheme.errorColor.withOpacity(0.05)
+                          ? AppTheme.errorColor.withValues(alpha: 0.05)
                           : Colors.white,
                   borderRadius: BorderRadius.circular(16.r),
                   boxShadow: [
                     if (!message.isUser)
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.black.withValues(alpha: 0.05),
                         blurRadius: 4,
                         offset: const Offset(0, 2),
                       ),

@@ -251,7 +251,7 @@ class _OpenClawDetailScreenState extends State<OpenClawDetailScreen> {
               width: 80.w,
               height: 80.w,
               decoration: BoxDecoration(
-                color: AppTheme.warningColor.withOpacity(0.1),
+                color: AppTheme.warningColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20.r),
               ),
               child: Center(

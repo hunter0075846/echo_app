@@ -385,7 +385,7 @@ class _AgentCreateScreenState extends ConsumerState<AgentCreateScreen> {
             Container(
               padding: EdgeInsets.all(12.w),
               decoration: BoxDecoration(
-                color: AppTheme.infoColor.withOpacity(0.05),
+                color: AppTheme.infoColor.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(8.r),
               ),
               child: Row(

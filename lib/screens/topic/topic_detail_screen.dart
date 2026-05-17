@@ -137,7 +137,7 @@ class TopicDetailScreen extends ConsumerWidget {
                   Container(
                     padding: EdgeInsets.all(16.w),
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryLightColor.withOpacity(0.1),
+                      color: AppTheme.primaryLightColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8.r),
                     ),
                     child: Row(
@@ -238,7 +238,7 @@ class TopicDetailScreen extends ConsumerWidget {
             color: Colors.white,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 10,
                 offset: const Offset(0, -5),
               ),

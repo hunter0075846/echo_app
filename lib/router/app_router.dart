@@ -6,6 +6,7 @@ import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/group/ai_assistant_screen.dart';
+import '../screens/group/group_bots_screen.dart';
 import '../screens/group/group_chat_screen.dart';
 import '../screens/group/memory_timeline_screen.dart';
 import '../screens/home/home_screen.dart';
@@ -87,6 +88,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/group/:id/ai-chat',
         builder: (context, state) => AiAssistantScreen(
+          groupId: state.pathParameters['id']!,
+        ),
+      ),
+      GoRoute(
+        path: '/group/:id/bots',
+        builder: (context, state) => GroupBotsScreen(
           groupId: state.pathParameters['id']!,
         ),
       ),

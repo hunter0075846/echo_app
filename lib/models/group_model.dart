@@ -228,6 +228,52 @@ class GroupMessageModel {
   }
 }
 
+class GroupBotModel {
+  final String id;
+  final String groupId;
+  final String userId;
+  final String connectionId;
+  final String? name;
+  final String? avatar;
+  final bool isActive;
+  final DateTime? createdAt;
+
+  // 嵌套对象
+  final Map<String, dynamic>? connection;
+  final Map<String, dynamic>? user;
+
+  const GroupBotModel({
+    required this.id,
+    required this.groupId,
+    required this.userId,
+    required this.connectionId,
+    this.name,
+    this.avatar,
+    this.isActive = true,
+    this.createdAt,
+    this.connection,
+    this.user,
+  });
+
+  factory GroupBotModel.fromJson(Map<String, dynamic> json) {
+    return GroupBotModel(
+      id: json['id'] as String,
+      groupId: json['groupId'] as String,
+      userId: json['userId'] as String,
+      connectionId: json['connectionId'] as String,
+      name: json['name'] as String?,
+      avatar: json['avatar'] as String?,
+      isActive: json['isActive'] as bool? ?? true,
+      createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt'] as String) : null,
+      connection: json['connection'] as Map<String, dynamic>?,
+      user: json['user'] as Map<String, dynamic>?,
+    );
+  }
+
+  String get displayName => name ?? connection?['name'] ?? 'OpenClaw';
+  String get ownerName => user?['nickname'] ?? '某用户';
+}
+
 class GroupTopicCardModel {
   final String id;
   final String groupId;

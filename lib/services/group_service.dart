@@ -1,3 +1,8 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:dio/dio.dart';
+
 import '../models/group_model.dart';
 import 'api_service.dart';
 
@@ -116,5 +121,50 @@ class GroupService {
         if (prompt != null) 'prompt': prompt,
       },
     });
+  }
+
+  // ---- OpenClaw Bot 管理 ----
+
+  Future<List<GroupBotModel>> getGroupBots(String groupId) async {
+    final response = await _api.get('/groups/$groupId/bots');
+    final List<dynamic> list = response.data['bots'] ?? [];
+    return list.map((e) => GroupBotModel.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<void> addBot(String groupId, String connectionId) async {
+    await _api.post('/groups/$groupId/bots', data: {
+      'connectionId': connectionId,
+    });
+  }
+
+  Future<void> removeBot(String groupId, String botId) async {
+    await _api.delete('/groups/$groupId/bots/$botId');
+  }
+
+  /// 建立群聊 SSE 连接，实时接收新消息
+  Stream<GroupMessageModel> connectSSE(String groupId) async* {
+    final response = await _api.dio.get(
+      '/groups/$groupId/events',
+      options: Options(
+        responseType: ResponseType.stream,
+        headers: {'Accept': 'text/event-stream'},
+      ),
+    );
+
+    final stream = response.data.stream as Stream<List<int>>;
+    await for (final line in utf8.decoder.bind(stream).transform(const LineSplitter())) {
+      if (line.startsWith('data: ')) {
+        final jsonStr = line.substring(6);
+        if (jsonStr.trim().isEmpty) continue;
+        try {
+          final data = jsonDecode(jsonStr) as Map<String, dynamic>;
+          if (data['type'] == 'message') {
+            yield GroupMessageModel.fromJson(data['message'] as Map<String, dynamic>);
+          }
+        } catch (_) {
+          // 忽略无法解析的行
+        }
+      }
+    }
   }
 }

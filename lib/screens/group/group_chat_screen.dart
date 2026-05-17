@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -7,6 +9,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../models/group_model.dart';
 import '../../providers/group_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/group_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/avatars/user_avatar.dart';
 
@@ -25,13 +28,41 @@ class GroupChatScreen extends ConsumerStatefulWidget {
 class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final GroupService _groupService = GroupService();
   bool _isAnonymous = false;
+  StreamSubscription? _sseSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _connectSSE();
+  }
 
   @override
   void dispose() {
+    _sseSubscription?.cancel();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _connectSSE() {
+    _sseSubscription?.cancel();
+    _sseSubscription = _groupService.connectSSE(widget.groupId).listen(
+      (message) {
+        ref.read(groupDetailProvider(widget.groupId).notifier).addMessageFromSSE(message);
+      },
+      onError: (e) {
+        // SSE 断线不弹错误，静默处理，依靠轮询兜底
+        debugPrint('[GroupChat] SSE error: $e');
+      },
+      onDone: () {
+        // 连接断开，3秒后重连
+        Future.delayed(const Duration(seconds: 3), () {
+          if (mounted) _connectSSE();
+        });
+      },
+    );
   }
 
   Future<void> _sendMessage() async {
@@ -121,7 +152,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 10,
                   offset: const Offset(0, -5),
                 ),
@@ -220,7 +251,15 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
               title: const Text('群成员'),
               onTap: () {
                 Navigator.pop(context);
-                // TODO: 显示群成员列表
+                context.push('/group/${widget.groupId}/members');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.smart_toy),
+              title: const Text('管理 OpenClaw'),
+              onTap: () {
+                Navigator.pop(context);
+                context.push('/group/${widget.groupId}/bots');
               },
             ),
             if (state.group?.ownerId == ref.read(authStateProvider).value?.id)
@@ -333,9 +372,9 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
             Container(
               padding: EdgeInsets.all(12.w),
               decoration: BoxDecoration(
-                color: AppTheme.errorColor.withOpacity(0.1),
+                color: AppTheme.errorColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8.r),
-                border: Border.all(color: AppTheme.errorColor.withOpacity(0.3)),
+                border: Border.all(color: AppTheme.errorColor.withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [
@@ -492,6 +531,21 @@ class _ChatMessage extends StatelessWidget {
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
+                          ] else if (_isBotMessage(message)) ...[
+                            Icon(
+                              Icons.smart_toy,
+                              size: 14.w,
+                              color: AppTheme.primaryColor,
+                            ),
+                            SizedBox(width: 4.w),
+                            Text(
+                              _botDisplayName(message),
+                              style: TextStyle(
+                                fontSize: 12.sp,
+                                color: AppTheme.primaryColor,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
                           ] else
                             Text(
                               message.senderName ?? '未知用户',
@@ -511,12 +565,14 @@ class _ChatMessage extends StatelessWidget {
                           ? AppTheme.primaryColor
                           : message.isAnonymous
                               ? AppTheme.anonymousBgColor
-                              : Colors.white,
+                              : _isBotMessage(message)
+                                  ? AppTheme.primaryColor.withValues(alpha: 0.08)
+                                  : Colors.white,
                       borderRadius: BorderRadius.circular(16.r),
                       boxShadow: [
                         if (!isMe)
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
+                            color: Colors.black.withValues(alpha: 0.05),
                             blurRadius: 4,
                             offset: const Offset(0, 2),
                           ),
@@ -559,6 +615,25 @@ class _ChatMessage extends StatelessWidget {
       );
     }
 
+    // Bot 消息显示机器人图标
+    if (_isBotMessage(message)) {
+      return Container(
+        width: 40.w,
+        height: 40.w,
+        decoration: BoxDecoration(
+          color: AppTheme.primaryColor.withValues(alpha: 0.1),
+          shape: BoxShape.circle,
+        ),
+        child: Center(
+          child: Icon(
+            Icons.smart_toy,
+            size: 20.w,
+            color: AppTheme.primaryColor,
+          ),
+        ),
+      );
+    }
+
     return UserAvatar(
       id: message.senderId,
       name: message.senderName,
@@ -581,10 +656,25 @@ class _ChatMessage extends StatelessWidget {
                 ? Colors.white
                 : message.isAnonymous
                     ? AppTheme.anonymousColor
-                    : AppTheme.textPrimaryColor,
+                    : _isBotMessage(message)
+                        ? AppTheme.primaryColor
+                        : AppTheme.textPrimaryColor,
           ),
         );
     }
+  }
+
+  // Bot 消息辅助方法
+  bool _isBotMessage(GroupMessageModel msg) {
+    final meta = msg.metadata;
+    return meta != null && meta['isBot'] == true;
+  }
+
+  String _botDisplayName(GroupMessageModel msg) {
+    final meta = msg.metadata;
+    final botName = meta?['botName'] as String? ?? 'OpenClaw';
+    final ownerName = msg.senderName ?? '某用户';
+    return '$ownerName的$botName';
   }
 
   // 小安转发卡片

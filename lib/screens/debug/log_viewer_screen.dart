@@ -234,7 +234,7 @@ class _LogViewerScreenState extends State<LogViewerScreen> {
       selected: selected,
       onSelected: (_) => onSelected(),
       selectedColor: color,
-      backgroundColor: color.withOpacity(0.1),
+      backgroundColor: color.withValues(alpha: 0.1),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
     );

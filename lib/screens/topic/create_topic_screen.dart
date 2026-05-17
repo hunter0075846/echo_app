@@ -201,8 +201,8 @@ class _CreateTopicScreenState extends ConsumerState<CreateTopicScreen> {
               padding: EdgeInsets.all(12.w),
               decoration: BoxDecoration(
                 color: remainingQuota > 0
-                    ? AppTheme.primaryLightColor.withOpacity(0.1)
-                    : AppTheme.errorColor.withOpacity(0.1),
+                    ? AppTheme.primaryLightColor.withValues(alpha: 0.1)
+                    : AppTheme.errorColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8.r),
               ),
               child: Row(
@@ -328,7 +328,7 @@ class _CreateTopicScreenState extends ConsumerState<CreateTopicScreen> {
                           size: 48.w,
                           color: remainingQuota > 0
                               ? AppTheme.textTertiaryColor
-                              : AppTheme.textTertiaryColor.withOpacity(0.5),
+                              : AppTheme.textTertiaryColor.withValues(alpha: 0.5),
                         ),
                         SizedBox(height: 12.h),
                         Text(
@@ -359,7 +359,7 @@ class _CreateTopicScreenState extends ConsumerState<CreateTopicScreen> {
                         child: Container(
                           padding: EdgeInsets.all(4.w),
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.5),
+                            color: Colors.black.withValues(alpha: 0.5),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
@@ -416,7 +416,7 @@ class _TypeOption extends StatelessWidget {
         padding: EdgeInsets.all(16.w),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppTheme.primaryColor.withOpacity(0.1)
+              ? AppTheme.primaryColor.withValues(alpha: 0.1)
               : AppTheme.backgroundColor,
           borderRadius: BorderRadius.circular(12.r),
           border: Border.all(

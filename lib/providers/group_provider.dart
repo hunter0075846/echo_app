@@ -257,4 +257,14 @@ class GroupDetailNotifier extends StateNotifier<GroupDetailState> {
       rethrow;
     }
   }
+
+  /// 从 SSE 接收新消息后添加到列表（避免去重：如果消息已存在则忽略）
+  void addMessageFromSSE(GroupMessageModel message) {
+    final exists = state.messages.any((m) => m.id == message.id);
+    if (!exists) {
+      state = state.copyWith(
+        messages: [message, ...state.messages],
+      );
+    }
+  }
 }
