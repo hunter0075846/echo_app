@@ -14,7 +14,9 @@ import '../screens/openclaw/openclaw_detail_screen.dart';
 import '../screens/openclaw/openclaw_list_screen.dart';
 import '../screens/openclaw/openclaw_setup_screen.dart';
 import '../screens/profile/about_screen.dart';
+import '../screens/profile/privacy_screen.dart';
 import '../screens/profile/profile_screen.dart';
+import '../screens/profile/terms_screen.dart';
 import '../screens/topic/create_topic_screen.dart';
 import '../screens/topic/topic_detail_screen.dart';
 
@@ -100,6 +102,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/about',
         builder: (context, state) => const AboutScreen(),
       ),
+      GoRoute(
+        path: '/terms',
+        builder: (context, state) => const TermsScreen(),
+      ),
+      GoRoute(
+        path: '/privacy',
+        builder: (context, state) => const PrivacyScreen(),
+      ),
       // OpenClaw 路由
       GoRoute(
         path: '/openclaw',
@@ -129,7 +139,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 64, color: AppTheme.errorColor),
+            const Icon(Icons.error_outline, size: 64, color: AppTheme.errorColor),
             const SizedBox(height: 16),
             Text(
               '页面出错了',

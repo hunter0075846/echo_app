@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../services/app_service.dart';
@@ -153,14 +154,14 @@ class _AboutScreenState extends State<AboutScreen> {
                     leading: const Icon(Icons.description_outlined),
                     title: const Text('用户协议'),
                     trailing: const Icon(Icons.chevron_right),
-                    onTap: () => _launchUrl('https://api.wudiclaw.cloud/terms'),
+                    onTap: () => context.push('/terms'),
                   ),
                   const Divider(height: 1),
                   ListTile(
                     leading: const Icon(Icons.privacy_tip_outlined),
                     title: const Text('隐私政策'),
                     trailing: const Icon(Icons.chevron_right),
-                    onTap: () => _launchUrl('https://echo.app/privacy'),
+                    onTap: () => context.push('/privacy'),
                   ),
                 ],
               ),
@@ -269,7 +270,7 @@ class _AboutScreenState extends State<AboutScreen> {
           Container(
             padding: EdgeInsets.all(8.w),
             decoration: BoxDecoration(
-              color: AppTheme.primaryLightColor.withOpacity(0.2),
+              color: AppTheme.primaryLightColor.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(8.r),
             ),
             child: Icon(icon, size: 20.w, color: AppTheme.primaryColor),
