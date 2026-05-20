@@ -10,10 +10,14 @@ import '../../widgets/avatars/user_avatar.dart';
 
 class PrivateChatScreen extends ConsumerStatefulWidget {
   final String userId;
+  final String? nickname;
+  final String? avatar;
 
   const PrivateChatScreen({
     super.key,
     required this.userId,
+    this.nickname,
+    this.avatar,
   });
 
   @override
@@ -26,12 +30,14 @@ class _PrivateChatScreenState extends ConsumerState<PrivateChatScreen> {
   final MessageService _messageService = MessageService();
   List<PrivateMessageModel> _messages = [];
   bool _isLoading = true;
-  String? _nickname;
-  String? _avatar;
+  late String? _nickname;
+  late String? _avatar;
 
   @override
   void initState() {
     super.initState();
+    _nickname = widget.nickname;
+    _avatar = widget.avatar;
     _loadMessages();
   }
 

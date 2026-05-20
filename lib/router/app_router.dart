@@ -148,9 +148,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/chat/:userId',
-        builder: (context, state) => PrivateChatScreen(
-          userId: state.pathParameters['userId']!,
-        ),
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return PrivateChatScreen(
+            userId: state.pathParameters['userId']!,
+            nickname: extra?['nickname'] as String?,
+            avatar: extra?['avatar'] as String?,
+          );
+        },
       ),
     ],
     errorBuilder: (context, state) => Scaffold(
