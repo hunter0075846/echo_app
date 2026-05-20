@@ -176,7 +176,9 @@ class _OpenClawChatScreenState extends ConsumerState<OpenClawChatScreen> {
   @override
   Widget build(BuildContext context) {
     final displayName = _connection?.displayName ?? '我的OpenClaw';
-    final status = _isConnected ? 'connected' : 'disconnected';
+    final connectionStatus = _connection?.status ?? 'disconnected';
+    final isOnline = _isConnected;
+    final status = isOnline ? 'connected' : 'disconnected';
 
     return Scaffold(
       appBar: AppBar(
@@ -199,7 +201,7 @@ class _OpenClawChatScreenState extends ConsumerState<OpenClawChatScreen> {
                         width: 8.w,
                         height: 8.w,
                         decoration: BoxDecoration(
-                          color: _isConnected
+                          color: isOnline
                               ? AppTheme.successColor
                               : AppTheme.textTertiaryColor,
                           shape: BoxShape.circle,
@@ -207,7 +209,7 @@ class _OpenClawChatScreenState extends ConsumerState<OpenClawChatScreen> {
                       ),
                       SizedBox(width: 6.w),
                       Text(
-                        _isConnected ? '在线' : '离线',
+                        isOnline ? '在线' : (connectionStatus == 'pending' ? '等待连接' : '离线'),
                         style: TextStyle(
                           fontSize: 11.sp,
                           color: AppTheme.textSecondaryColor,

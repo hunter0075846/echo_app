@@ -26,6 +26,7 @@ class GroupListTab extends ConsumerStatefulWidget {
 class _GroupListTabState extends ConsumerState<GroupListTab> {
   late final OpenClawService _openClawService;
   List<OpenClawConnectionModel> _openClawConnections = [];
+  Map<String, bool> _openClawOnlineStatus = {};
   bool _openClawLoading = true;
 
   @override
@@ -38,9 +39,20 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
   Future<void> _loadOpenClawConnections() async {
     try {
       final connections = await _openClawService.getConnections();
+      final statusFutures = connections.map((conn) async {
+        try {
+          final status = await _openClawService.getConnectionStatus(conn.id);
+          return MapEntry(conn.id, status['connected'] == true);
+        } catch (e) {
+          return MapEntry(conn.id, false);
+        }
+      });
+      final statuses = await Future.wait(statusFutures);
+      final statusMap = Map.fromEntries(statuses);
       if (mounted) {
         setState(() {
           _openClawConnections = connections;
+          _openClawOnlineStatus = statusMap;
           _openClawLoading = false;
         });
       }
@@ -308,7 +320,7 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
 
   // OpenClaw 连接卡片
   Widget _buildOpenClawConnectionCard(BuildContext context, OpenClawConnectionModel connection) {
-    final isOnline = connection.status == 'connected';
+    final isOnline = _openClawOnlineStatus[connection.id] ?? false;
     final statusColor = isOnline ? AppTheme.successColor : AppTheme.warningColor;
 
     return Container(
@@ -338,7 +350,7 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
               children: [
                 OpenClawAvatar(
                   size: 48,
-                  status: connection.status,
+                  status: isOnline ? 'connected' : 'disconnected',
                 ),
                 SizedBox(width: 12.w),
                 Expanded(

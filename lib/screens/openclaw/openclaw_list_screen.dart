@@ -21,6 +21,7 @@ class _OpenClawListScreenState extends State<OpenClawListScreen> {
   final OpenClawService _service = OpenClawService(ApiService());
 
   List<OpenClawConnectionModel> _connections = [];
+  Map<String, bool> _onlineStatus = {};
   bool _isLoading = true;
   bool _hasError = false;
   Timer? _pollTimer;
@@ -45,14 +46,25 @@ class _OpenClawListScreenState extends State<OpenClawListScreen> {
 
     try {
       final connections = await _service.getConnections();
+      final statusFutures = connections.map((conn) async {
+        try {
+          final status = await _service.getConnectionStatus(conn.id);
+          return MapEntry(conn.id, status['connected'] == true);
+        } catch (e) {
+          return MapEntry(conn.id, false);
+        }
+      });
+      final statuses = await Future.wait(statusFutures);
+      final statusMap = Map.fromEntries(statuses);
+
       if (mounted) {
         setState(() {
           _connections = connections;
+          _onlineStatus = statusMap;
           _isLoading = false;
         });
       }
 
-      // 如果有 pending 状态的连接，开始轮询
       _startPollingIfNeeded();
     } catch (e) {
       if (mounted) {
@@ -195,6 +207,7 @@ class _OpenClawListScreenState extends State<OpenClawListScreen> {
           final connection = _connections[index];
           return _ConnectionCard(
             connection: connection,
+            isOnline: _onlineStatus[connection.id] ?? false,
             onTap: () => _goToChat(connection),
             onEdit: () => _goToDetail(connection),
             onDelete: () => _deleteConnection(connection),
@@ -247,12 +260,14 @@ class _OpenClawListScreenState extends State<OpenClawListScreen> {
 
 class _ConnectionCard extends StatelessWidget {
   final OpenClawConnectionModel connection;
+  final bool isOnline;
   final VoidCallback onTap;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   const _ConnectionCard({
     required this.connection,
+    required this.isOnline,
     required this.onTap,
     required this.onEdit,
     required this.onDelete,
@@ -260,8 +275,6 @@ class _ConnectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isOnline = connection.status == 'connected';
-
     return Card(
       margin: EdgeInsets.only(bottom: 12.h),
       elevation: 0,
@@ -281,7 +294,7 @@ class _ConnectionCard extends StatelessWidget {
             children: [
               OpenClawAvatar(
                 size: 48,
-                status: connection.status,
+                status: isOnline ? 'connected' : 'disconnected',
               ),
               SizedBox(width: 12.w),
               Expanded(
