@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../../theme/app_theme.dart';
+import '../friend/friend_list_screen.dart';
 import 'topic_square_tab.dart';
 import 'group_list_tab.dart';
 import 'profile_tab.dart';
@@ -22,6 +23,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   final _pages = [
     const TopicSquareTab(),
     const GroupListTab(),
+    const FriendListScreen(),
     const ProfileTab(),
   ];
 
@@ -70,10 +72,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     index: 1,
                   ),
                   _buildNavItem(
+                    icon: Icons.people_outline,
+                    activeIcon: Icons.people,
+                    label: '好友',
+                    index: 2,
+                  ),
+                  _buildNavItem(
                     icon: Icons.person_outline,
                     activeIcon: Icons.person,
                     label: '我的',
-                    index: 2,
+                    index: 3,
                   ),
                 ],
               ),

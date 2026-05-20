@@ -18,6 +18,8 @@ import '../screens/profile/about_screen.dart';
 import '../screens/profile/privacy_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/profile/terms_screen.dart';
+import '../screens/chat/private_chat_screen.dart';
+import '../screens/friend/friend_list_screen.dart';
 import '../screens/topic/create_topic_screen.dart';
 import '../screens/topic/topic_detail_screen.dart';
 
@@ -138,6 +140,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/openclaw/:id/edit',
         builder: (context, state) => OpenClawDetailScreen(
           connectionId: state.pathParameters['id']!,
+        ),
+      ),
+      GoRoute(
+        path: '/friends',
+        builder: (context, state) => const FriendListScreen(),
+      ),
+      GoRoute(
+        path: '/chat/:userId',
+        builder: (context, state) => PrivateChatScreen(
+          userId: state.pathParameters['userId']!,
         ),
       ),
     ],
