@@ -1,4 +1,4 @@
-import '../models/conversation_model.dart';
+import '../models/friend_model.dart';
 import '../models/private_message_model.dart';
 import 'api_exception.dart';
 import 'api_service.dart';
