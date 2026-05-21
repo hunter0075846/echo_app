@@ -35,7 +35,23 @@ class ApiException implements Exception {
       return ApiException.network('网络错误，请检查网络连接');
     }
 
-    String message = '服务器错误，请稍后重试';
+    if (statusCode == 404) {
+      return ApiException(
+        statusCode: statusCode,
+        message: '请求的资源不存在',
+        code: 'NOT_FOUND',
+      );
+    }
+
+    if (statusCode != null && statusCode >= 500) {
+      return ApiException(
+        statusCode: statusCode,
+        message: '服务器错误，请稍后重试',
+        code: 'SERVER_ERROR',
+      );
+    }
+
+    String message = '请求失败，请稍后重试';
     String? code;
     dynamic details;
 
@@ -50,7 +66,7 @@ class ApiException implements Exception {
       } else if (data['message'] is String) {
         message = data['message'];
       }
-    } else if (data is String && data.isNotEmpty) {
+    } else if (data is String && data.isNotEmpty && data.length < 200) {
       message = data;
     }
 
