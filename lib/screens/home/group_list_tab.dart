@@ -5,9 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../models/friend_model.dart';
 import '../../models/group_model.dart';
 import '../../models/openclaw_connection_model.dart';
+import '../../providers/conversation_provider.dart';
 import '../../providers/group_provider.dart';
+import '../../services/friend_service.dart';
 import '../../services/openclaw_service.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
@@ -25,15 +28,23 @@ class GroupListTab extends ConsumerStatefulWidget {
 
 class _GroupListTabState extends ConsumerState<GroupListTab> {
   late final OpenClawService _openClawService;
+  final FriendService _friendService = FriendService();
   List<OpenClawConnectionModel> _openClawConnections = [];
   Map<String, bool> _openClawOnlineStatus = {};
   bool _openClawLoading = true;
+  List<FriendRequestModel> _friendRequests = [];
+  bool _showAddFriendSheet = false;
+  String _phoneInput = '';
 
   @override
   void initState() {
     super.initState();
     _openClawService = OpenClawService(ApiService());
     _loadOpenClawConnections();
+    _loadFriendRequests();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(conversationProvider.notifier).loadConversations();
+    });
   }
 
   Future<void> _loadOpenClawConnections() async {
@@ -63,11 +74,77 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
     }
   }
 
+  Future<void> _loadFriendRequests() async {
+    try {
+      final requests = await _friendService.getFriendRequests();
+      if (mounted) {
+        setState(() => _friendRequests = requests);
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  Future<void> _handleSendFriendRequest() async {
+    if (_phoneInput.isEmpty) return;
+    try {
+      await _friendService.sendFriendRequest(_phoneInput);
+      if (mounted) {
+        setState(() {
+          _showAddFriendSheet = false;
+          _phoneInput = '';
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('好友请求已发送')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('发送失败: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleAcceptRequest(String userId) async {
+    try {
+      await _friendService.acceptFriendRequest(userId);
+      await _loadFriendRequests();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('已添加好友')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('操作失败: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleRejectRequest(String userId) async {
+    try {
+      await _friendService.rejectFriendRequest(userId);
+      await _loadFriendRequests();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('操作失败: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> _refreshAll() async {
     await Future.wait([
       ref.read(groupListProvider.notifier).loadGroups(),
       _loadOpenClawConnections(),
+      _loadFriendRequests(),
     ]);
+    ref.read(conversationProvider.notifier).loadConversations();
   }
 
   @override
@@ -76,15 +153,81 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('我的群聊'),
+        title: const Text('聊天'),
         actions: [
-          IconButton(
+          PopupMenuButton<String>(
             icon: const Icon(Icons.add),
-            onPressed: () => _showCreateGroupDialog(context, ref),
-          ),
-          IconButton(
-            icon: const Icon(Icons.qr_code_scanner),
-            onPressed: () => _showJoinGroupDialog(context, ref),
+            onSelected: (value) {
+              switch (value) {
+                case 'create_group':
+                  _showCreateGroupDialog(context, ref);
+                  break;
+                case 'scan_join':
+                  _showJoinGroupDialog(context, ref);
+                  break;
+                case 'connect_openclaw':
+                  context.push('/openclaw/setup').then((_) => _loadOpenClawConnections());
+                  break;
+                case 'add_friend':
+                  setState(() => _showAddFriendSheet = true);
+                  break;
+                case 'my_friends':
+                  context.push('/friends');
+                  break;
+              }
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'create_group',
+                child: Row(
+                  children: [
+                    const Icon(Icons.group_add, size: 18),
+                    SizedBox(width: 8.w),
+                    const Text('创建群聊'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'scan_join',
+                child: Row(
+                  children: [
+                    const Icon(Icons.qr_code_scanner, size: 18),
+                    SizedBox(width: 8.w),
+                    const Text('扫码加入'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'connect_openclaw',
+                child: Row(
+                  children: [
+                    const Icon(Icons.link, size: 18),
+                    SizedBox(width: 8.w),
+                    const Text('关联 OpenClaw'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'add_friend',
+                child: Row(
+                  children: [
+                    const Icon(Icons.person_add, size: 18),
+                    SizedBox(width: 8.w),
+                    const Text('添加好友'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'my_friends',
+                child: Row(
+                  children: [
+                    const Icon(Icons.people, size: 18),
+                    SizedBox(width: 8.w),
+                    const Text('我的好友'),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -92,10 +235,64 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
         onRefresh: _refreshAll,
         child: _buildBody(context, ref, groupState),
       ),
+      bottomSheet: _showAddFriendSheet
+          ? Container(
+              padding: EdgeInsets.all(16.w),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(24.r),
+                  topRight: Radius.circular(24.r),
+                ),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '添加好友',
+                    style: TextStyle(
+                      fontSize: 18.sp,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textPrimaryColor,
+                    ),
+                  ),
+                  SizedBox(height: 16.h),
+                  TextField(
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(
+                      hintText: '请输入手机号',
+                    ),
+                    onChanged: (value) => _phoneInput = value,
+                    autofocus: true,
+                  ),
+                  SizedBox(height: 16.h),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () => setState(() => _showAddFriendSheet = false),
+                          child: const Text('取消'),
+                        ),
+                      ),
+                      SizedBox(width: 16.w),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: _handleSendFriendRequest,
+                          child: const Text('发送请求'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            )
+          : null,
     );
   }
 
   Widget _buildBody(BuildContext context, WidgetRef ref, GroupListState state) {
+    final conversationState = ref.watch(conversationProvider);
+
     if (state.isLoading && state.groups.isEmpty && _openClawLoading) {
       return ListView.builder(
         padding: EdgeInsets.all(16.w),
@@ -132,36 +329,16 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
       );
     }
 
+    final hasAnyChat = conversationState.conversations.isNotEmpty || state.groups.isNotEmpty;
+
     return ListView(
       padding: EdgeInsets.all(16.w),
       children: [
-        // ========== AI助手区域 ==========
-        _buildSectionHeader(
-          context,
-          title: 'AI助手',
-          action: const SizedBox.shrink(),
-        ),
-        SizedBox(height: 12.h),
-
         // 小安卡片
         _buildXiaoAnCard(context),
-        SizedBox(height: 16.h),
+        SizedBox(height: 8.h),
         const Divider(),
-        SizedBox(height: 16.h),
-
-        // ========== OpenClaw 区域 ==========
-        _buildSectionHeader(
-          context,
-          title: 'OpenClaw',
-          action: TextButton(
-            onPressed: () => context.push('/openclaw'),
-            child: Text(
-              _openClawConnections.isNotEmpty ? '管理' : '去关联',
-              style: TextStyle(fontSize: 13.sp),
-            ),
-          ),
-        ),
-        SizedBox(height: 12.h),
+        SizedBox(height: 8.h),
 
         if (_openClawLoading)
           const Center(
@@ -187,55 +364,35 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
             ),
           ),
 
-        SizedBox(height: 16.h),
+        SizedBox(height: 8.h),
         const Divider(),
-        SizedBox(height: 16.h),
+        SizedBox(height: 8.h),
 
-        // ========== 群聊区域 ==========
-        _buildSectionHeader(
-          context,
-          title: '群聊',
-          action: TextButton.icon(
-            onPressed: () => _showCreateGroupDialog(context, ref),
-            icon: Icon(Icons.add, size: 16.sp),
-            label: Text('创建', style: TextStyle(fontSize: 13.sp)),
-            style: TextButton.styleFrom(
-              padding: EdgeInsets.zero,
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-          ),
-        ),
-        SizedBox(height: 12.h),
-
-        if (state.groups.isEmpty)
-          _buildEmptyGroupState(context, ref)
-        else
-          ...state.groups.map((group) => GroupCard(
-                group: group,
-                onTap: () => context.push('/group/${group.id}'),
-              )),
-      ],
-    );
-  }
-
-  Widget _buildSectionHeader(
-    BuildContext context, {
-    required String title,
-    required Widget action,
-  }) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
+        // 聊天区域标题
         Text(
-          title,
+          '聊天',
           style: TextStyle(
             fontSize: 18.sp,
             fontWeight: FontWeight.w700,
             color: Theme.of(context).echoTextPrimary,
           ),
         ),
-        action,
+        SizedBox(height: 12.h),
+
+        // 好友请求提示
+        if (_friendRequests.isNotEmpty)
+          _buildFriendRequestBanner(context),
+
+        // 聊天列表：私聊会话 + 群聊
+        if (hasAnyChat) ...[
+          ...conversationState.conversations.map(
+            (conv) => _buildConversationTile(context, conv),
+          ),
+          ...state.groups.map(
+            (group) => _buildGroupTile(context, group),
+          ),
+        ] else
+          _buildEmptyChatState(context, ref),
       ],
     );
   }
@@ -463,8 +620,8 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
     );
   }
 
-  // 空群聊状态
-  Widget _buildEmptyGroupState(BuildContext context, WidgetRef ref) {
+  // 空聊天状态
+  Widget _buildEmptyChatState(BuildContext context, WidgetRef ref) {
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 32.h),
       child: Center(
@@ -478,7 +635,7 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
             ),
             SizedBox(height: 12.h),
             Text(
-              '还没有群聊',
+              '还没有聊天',
               style: TextStyle(
                 fontSize: 16.sp,
                 fontWeight: FontWeight.w500,
@@ -487,7 +644,7 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
             ),
             SizedBox(height: 6.h),
             Text(
-              '创建群聊或扫码加入',
+              '创建群聊或添加好友',
               style: TextStyle(
                 fontSize: 13.sp,
                 color: Theme.of(context).echoTextTertiary,
@@ -631,83 +788,213 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
       ),
     );
   }
-}
 
-class GroupCard extends StatelessWidget {
-  final GroupModel group;
-  final VoidCallback onTap;
-
-  const GroupCard({
-    super.key,
-    required this.group,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: EdgeInsets.only(bottom: 10.h),
-      child: Card(
-        margin: EdgeInsets.zero,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(12.r),
-          child: Padding(
-            padding: EdgeInsets.all(14.w),
-            child: Row(
-              children: [
-                UserAvatar(
-                  id: group.id,
-                  name: group.name.isNotEmpty ? group.name : '群',
-                  size: 48,
-                ),
-                SizedBox(width: 12.w),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        group.name,
-                        style: TextStyle(
-                          fontSize: 15.sp,
-                          fontWeight: FontWeight.w600,
-                          color: Theme.of(context).echoTextPrimary,
-                        ),
-                      ),
-                      if (group.description != null && group.description!.isNotEmpty)
-                        Padding(
-                          padding: EdgeInsets.only(top: 4.h),
-                          child: Text(
-                            group.description!,
-                            style: TextStyle(
-                              fontSize: 13.sp,
-                              color: Theme.of(context).echoTextSecondary,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      SizedBox(height: 4.h),
-                      Text(
-                        '${group.currentMembers}/${group.maxMembers} 人',
-                        style: TextStyle(
-                          fontSize: 12.sp,
-                          color: Theme.of(context).echoTextTertiary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(
-                  Icons.chevron_right,
-                  size: 20,
-                  color: Theme.of(context).echoTextTertiary,
-                ),
-              ],
+  // 私聊会话项
+  Widget _buildConversationTile(BuildContext context, ConversationModel conversation) {
+    return ListTile(
+      contentPadding: EdgeInsets.symmetric(horizontal: 0, vertical: 4.h),
+      leading: UserAvatar(
+        id: conversation.userId,
+        name: conversation.nickname,
+        imageUrl: conversation.avatar,
+        size: 48,
+      ),
+      title: Text(
+        conversation.nickname ?? conversation.phone,
+        style: TextStyle(
+          fontSize: 15.sp,
+          fontWeight: FontWeight.w600,
+          color: Theme.of(context).echoTextPrimary,
+        ),
+      ),
+      subtitle: Text(
+        conversation.lastMessage,
+        style: TextStyle(
+          fontSize: 13.sp,
+          color: Theme.of(context).echoTextSecondary,
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      trailing: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Text(
+            _formatTime(conversation.lastMessageAt),
+            style: TextStyle(
+              fontSize: 11.sp,
+              color: Theme.of(context).echoTextTertiary,
             ),
           ),
+          if (conversation.unreadCount > 0)
+            Container(
+              margin: EdgeInsets.only(top: 4.h),
+              padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
+              decoration: BoxDecoration(
+                color: AppTheme.errorColor,
+                borderRadius: BorderRadius.circular(10.r),
+              ),
+              child: Text(
+                '${conversation.unreadCount}',
+                style: TextStyle(
+                  fontSize: 10.sp,
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+        ],
+      ),
+      onTap: () => context.push('/chat/${conversation.userId}', extra: {
+        'userId': conversation.userId,
+        'nickname': conversation.nickname,
+        'avatar': conversation.avatar,
+      }),
+    );
+  }
+
+  // 群聊项（ListTile 样式）
+  Widget _buildGroupTile(BuildContext context, GroupModel group) {
+    return ListTile(
+      contentPadding: EdgeInsets.symmetric(horizontal: 0, vertical: 4.h),
+      leading: UserAvatar(
+        id: group.id,
+        name: group.name.isNotEmpty ? group.name : '群',
+        size: 48,
+      ),
+      title: Text(
+        group.name,
+        style: TextStyle(
+          fontSize: 15.sp,
+          fontWeight: FontWeight.w600,
+          color: Theme.of(context).echoTextPrimary,
+        ),
+      ),
+      subtitle: Text(
+        group.description != null && group.description!.isNotEmpty
+            ? '${group.description} · ${group.currentMembers}人'
+            : '${group.currentMembers}人',
+        style: TextStyle(
+          fontSize: 13.sp,
+          color: Theme.of(context).echoTextSecondary,
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      trailing: Icon(
+        Icons.chevron_right,
+        size: 20,
+        color: Theme.of(context).echoTextTertiary,
+      ),
+      onTap: () => context.push('/group/${group.id}'),
+    );
+  }
+
+  // 好友请求提示横幅
+  Widget _buildFriendRequestBanner(BuildContext context) {
+    return InkWell(
+      onTap: () {
+        // 点击展开好友请求处理
+        _showFriendRequestsSheet(context);
+      },
+      borderRadius: BorderRadius.circular(12.r),
+      child: Container(
+        margin: EdgeInsets.only(bottom: 12.h),
+        padding: EdgeInsets.symmetric(vertical: 12.h, horizontal: 14.w),
+        decoration: BoxDecoration(
+          color: AppTheme.primaryColor.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(12.r),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.person_add,
+              color: AppTheme.primaryColor,
+              size: 20,
+            ),
+            SizedBox(width: 10.w),
+            Expanded(
+              child: Text(
+                '${_friendRequests.length} 条好友请求',
+                style: TextStyle(
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w500,
+                  color: AppTheme.primaryColor,
+                ),
+              ),
+            ),
+            Icon(
+              Icons.chevron_right,
+              size: 18,
+              color: AppTheme.primaryColor,
+            ),
+          ],
         ),
       ),
     );
+  }
+
+  void _showFriendRequestsSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        padding: EdgeInsets.all(16.w),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '好友请求',
+              style: TextStyle(
+                fontSize: 18.sp,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            SizedBox(height: 12.h),
+            ..._friendRequests.map((req) => ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: UserAvatar(
+                id: req.userId,
+                name: req.nickname,
+                imageUrl: req.avatar,
+                size: 40,
+              ),
+              title: Text(req.nickname ?? req.phone),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextButton(
+                    onPressed: () => _handleRejectRequest(req.userId),
+                    child: Text(
+                      '拒绝',
+                      style: TextStyle(color: AppTheme.textSecondaryColor),
+                    ),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => _handleAcceptRequest(req.userId),
+                    child: const Text('接受'),
+                  ),
+                ],
+              ),
+            )),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatTime(DateTime dateTime) {
+    final now = DateTime.now();
+    final diff = now.difference(dateTime);
+    if (diff.inDays > 0) {
+      return '${diff.inDays}天前';
+    } else if (diff.inHours > 0) {
+      return '${diff.inHours}小时前';
+    } else if (diff.inMinutes > 0) {
+      return '${diff.inMinutes}分钟前';
+    } else {
+      return '刚刚';
+    }
   }
 }

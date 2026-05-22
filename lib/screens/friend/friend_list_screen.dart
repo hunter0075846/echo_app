@@ -173,12 +173,6 @@ class _FriendListScreenState extends ConsumerState<FriendListScreen> {
                   ..._friends.map((friend) => _buildFriendItem(friend)),
               ],
             ),
-      floatingActionButton: _showAddDialog
-          ? null
-          : FloatingActionButton(
-              onPressed: () => setState(() => _showAddDialog = true),
-              child: const Icon(Icons.person_add),
-            ),
       bottomSheet: _showAddDialog
           ? Container(
               padding: EdgeInsets.all(16.w),
@@ -325,14 +319,64 @@ class _FriendListScreenState extends ConsumerState<FriendListScreen> {
                   ],
                 ),
               ),
-              Icon(
-                Icons.arrow_forward_ios,
-                size: 16.w,
-                color: AppTheme.textTertiaryColor,
+              PopupMenuButton<String>(
+                onSelected: (value) {
+                  if (value == 'delete') {
+                    _showDeleteConfirm(context, friend);
+                  }
+                },
+                itemBuilder: (context) => [
+                  PopupMenuItem(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        const Icon(Icons.delete_outline, size: 18, color: AppTheme.errorColor),
+                        SizedBox(width: 8.w),
+                        const Text('删除好友', style: TextStyle(color: AppTheme.errorColor)),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _showDeleteConfirm(BuildContext context, FriendModel friend) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('删除好友'),
+        content: Text('确定要删除好友 ${friend.nickname ?? _formatPhone(friend.phone)} 吗？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              try {
+                await _friendService.deleteFriend(friend.friendId);
+                await _loadFriends();
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('已删除好友')),
+                );
+              } catch (e) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('删除失败: $e')),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.errorColor),
+            child: const Text('删除'),
+          ),
+        ],
       ),
     );
   }

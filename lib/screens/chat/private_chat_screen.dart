@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../../models/private_message_model.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/friend_service.dart';
 import '../../services/message_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/avatars/user_avatar.dart';
@@ -148,7 +149,7 @@ class _PrivateChatScreenState extends ConsumerState<PrivateChatScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.more_vert),
-            onPressed: () {},
+            onPressed: () => _showChatMenu(context),
           ),
         ],
       ),
@@ -212,6 +213,64 @@ class _PrivateChatScreenState extends ConsumerState<PrivateChatScreen> {
                 ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showChatMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        padding: EdgeInsets.all(20.w),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.delete_outline, color: AppTheme.errorColor),
+              title: Text('删除好友', style: TextStyle(color: AppTheme.errorColor)),
+              onTap: () {
+                Navigator.pop(context);
+                _showDeleteFriendConfirm(context);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showDeleteFriendConfirm(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('删除好友'),
+        content: Text('确定要删除好友 ${_nickname ?? widget.userId} 吗？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              try {
+                await FriendService().deleteFriend(widget.userId);
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('已删除好友')),
+                );
+                Navigator.pop(context);
+              } catch (e) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('删除失败: $e')),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.errorColor),
+            child: const Text('删除'),
           ),
         ],
       ),
