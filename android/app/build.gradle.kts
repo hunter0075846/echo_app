@@ -37,6 +37,18 @@ android {
         release {
             // 使用默认签名配置，不强制验证
             signingConfig = signingConfigs.getByName("debug")
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
+    }
+
+    packaging {
+        jniLibs {
+            excludes += listOf("lib/x86_64/**", "lib/armeabi-v7a/**")
         }
     }
 }
