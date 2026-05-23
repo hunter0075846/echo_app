@@ -72,6 +72,12 @@ class GroupService {
     return response.data['code'] as String;
   }
 
+  // 通过邀请码查群信息（只读，不加入）
+  Future<Map<String, dynamic>> getGroupByInviteCode(String code) async {
+    final response = await _api.get('/groups/invite/${code.toUpperCase()}');
+    return response.data as Map<String, dynamic>;
+  }
+
   // 通过邀请码加入群聊
   Future<GroupModel> joinGroupByCode(String code) async {
     final response = await _api.post('/groups/join', data: {

@@ -31,6 +31,10 @@ class FriendService {
     await _api.delete('/friends', data: {'friendId': friendId});
   }
 
+  Future<void> sendFriendRequestByUserId(String userId) async {
+    await _api.post('/friends/by-user-id', data: {'userId': userId});
+  }
+
   Future<void> deleteFriend(String friendId) async {
     await _api.delete('/friends', data: {'friendId': friendId});
   }

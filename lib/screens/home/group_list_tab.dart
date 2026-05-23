@@ -159,17 +159,17 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
             icon: const Icon(Icons.add),
             onSelected: (value) {
               switch (value) {
-                case 'create_group':
-                  _showCreateGroupDialog(context, ref);
-                  break;
-                case 'scan_join':
-                  _showJoinGroupDialog(context, ref);
+                case 'add_friend':
+                  setState(() => _showAddFriendSheet = true);
                   break;
                 case 'connect_openclaw':
                   context.push('/openclaw/setup').then((_) => _loadOpenClawConnections());
                   break;
-                case 'add_friend':
-                  setState(() => _showAddFriendSheet = true);
+                case 'scan_qr':
+                  context.push('/scanner');
+                  break;
+                case 'create_group':
+                  _showCreateGroupDialog(context, ref);
                   break;
                 case 'my_friends':
                   context.push('/friends');
@@ -178,22 +178,12 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
             },
             itemBuilder: (context) => [
               PopupMenuItem(
-                value: 'create_group',
+                value: 'add_friend',
                 child: Row(
                   children: [
-                    const Icon(Icons.group_add, size: 18),
+                    const Icon(Icons.person_add, size: 18),
                     SizedBox(width: 8.w),
-                    const Text('创建群聊'),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: 'scan_join',
-                child: Row(
-                  children: [
-                    const Icon(Icons.qr_code_scanner, size: 18),
-                    SizedBox(width: 8.w),
-                    const Text('扫码加入'),
+                    const Text('添加好友'),
                   ],
                 ),
               ),
@@ -208,12 +198,22 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
                 ),
               ),
               PopupMenuItem(
-                value: 'add_friend',
+                value: 'scan_qr',
                 child: Row(
                   children: [
-                    const Icon(Icons.person_add, size: 18),
+                    const Icon(Icons.qr_code_scanner, size: 18),
                     SizedBox(width: 8.w),
-                    const Text('添加好友'),
+                    const Text('扫一扫'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'create_group',
+                child: Row(
+                  children: [
+                    const Icon(Icons.group_add, size: 18),
+                    SizedBox(width: 8.w),
+                    const Text('创建群聊'),
                   ],
                 ),
               ),
@@ -729,60 +729,6 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
               }
             },
             child: const Text('创建'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showJoinGroupDialog(BuildContext context, WidgetRef ref) {
-    final codeController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('加入群聊'),
-        content: TextField(
-          controller: codeController,
-          decoration: const InputDecoration(
-            labelText: '邀请码',
-            hintText: '输入6位邀请码',
-          ),
-          maxLength: 6,
-          textCapitalization: TextCapitalization.characters,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final code = codeController.text.trim().toUpperCase();
-              if (code.length != 6) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('请输入6位邀请码')),
-                );
-                return;
-              }
-
-              Navigator.pop(context);
-              try {
-                await ref.read(groupListProvider.notifier).joinGroupByCode(code);
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('加入群聊成功')),
-                  );
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('加入失败: $e')),
-                  );
-                }
-              }
-            },
-            child: const Text('加入'),
           ),
         ],
       ),

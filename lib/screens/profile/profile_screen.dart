@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../theme/app_theme.dart';
@@ -50,6 +52,40 @@ class ProfileScreen extends ConsumerWidget {
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: AppTheme.textTertiaryColor,
                           ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          // 我的二维码
+          if (user != null)
+            Card(
+              margin: EdgeInsets.symmetric(horizontal: 16.w),
+              child: Padding(
+                padding: EdgeInsets.all(16.w),
+                child: Column(
+                  children: [
+                    Text(
+                      '扫一扫添加我为好友',
+                      style: TextStyle(
+                        fontSize: 14.sp,
+                        color: AppTheme.textSecondaryColor,
+                      ),
+                    ),
+                    SizedBox(height: 12.h),
+                    QrImageView(
+                      data: 'echo://friend/${user.id}',
+                      version: QrVersions.auto,
+                      size: 200.w,
+                      eyeStyle: const QrEyeStyle(
+                        eyeShape: QrEyeShape.circle,
+                        color: AppTheme.primaryColor,
+                      ),
+                      dataModuleStyle: const QrDataModuleStyle(
+                        dataModuleShape: QrDataModuleShape.circle,
+                        color: AppTheme.primaryColor,
+                      ),
                     ),
                   ],
                 ),
