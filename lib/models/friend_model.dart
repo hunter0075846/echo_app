@@ -121,3 +121,59 @@ class ConversationModel {
     };
   }
 }
+
+class FriendInviteModel {
+  final String id;
+  final String userId;
+  final String friendId;
+  final String phone;
+  final String? nickname;
+  final String? avatar;
+  final String status;
+  final String direction;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  const FriendInviteModel({
+    required this.id,
+    required this.userId,
+    required this.friendId,
+    required this.phone,
+    this.nickname,
+    this.avatar,
+    required this.status,
+    required this.direction,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  factory FriendInviteModel.fromJson(Map<String, dynamic> json) {
+    return FriendInviteModel(
+      id: json['id'] as String,
+      userId: json['userId'] as String,
+      friendId: json['friendId'] as String,
+      phone: json['phone'] as String,
+      nickname: json['nickname'] as String?,
+      avatar: json['avatar'] as String?,
+      status: json['status'] as String,
+      direction: json['direction'] as String,
+      createdAt: DateTime.parse(json['createdAt'] as String),
+      updatedAt: DateTime.parse(json['updatedAt'] as String),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'userId': userId,
+      'friendId': friendId,
+      'phone': phone,
+      'nickname': nickname,
+      'avatar': avatar,
+      'status': status,
+      'direction': direction,
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
+    };
+  }
+}

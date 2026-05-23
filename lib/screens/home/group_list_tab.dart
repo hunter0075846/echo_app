@@ -32,7 +32,7 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
   List<OpenClawConnectionModel> _openClawConnections = [];
   Map<String, bool> _openClawOnlineStatus = {};
   bool _openClawLoading = true;
-  List<FriendRequestModel> _friendRequests = [];
+  List<FriendInviteModel> _invites = [];
   bool _showAddFriendSheet = false;
   String _phoneInput = '';
 
@@ -41,7 +41,7 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
     super.initState();
     _openClawService = OpenClawService(ApiService());
     _loadOpenClawConnections();
-    _loadFriendRequests();
+    _loadInvites();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(conversationProvider.notifier).loadConversations();
     });
@@ -74,11 +74,11 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
     }
   }
 
-  Future<void> _loadFriendRequests() async {
+  Future<void> _loadInvites() async {
     try {
-      final requests = await _friendService.getFriendRequests();
+      final invites = await _friendService.getFriendInvites();
       if (mounted) {
-        setState(() => _friendRequests = requests);
+        setState(() => _invites = invites);
       }
     } catch (e) {
       // ignore
@@ -107,44 +107,19 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
     }
   }
 
-  Future<void> _handleAcceptRequest(String userId) async {
-    try {
-      await _friendService.acceptFriendRequest(userId);
-      await _loadFriendRequests();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('已添加好友')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('操作失败: $e')),
-        );
-      }
-    }
-  }
-
-  Future<void> _handleRejectRequest(String userId) async {
-    try {
-      await _friendService.rejectFriendRequest(userId);
-      await _loadFriendRequests();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('操作失败: $e')),
-        );
-      }
-    }
-  }
-
   Future<void> _refreshAll() async {
     await Future.wait([
       ref.read(groupListProvider.notifier).loadGroups(),
       _loadOpenClawConnections(),
-      _loadFriendRequests(),
+      _loadInvites(),
     ]);
     ref.read(conversationProvider.notifier).loadConversations();
+  }
+
+  int get _pendingReceivedCount {
+    return _invites
+        .where((i) => i.direction == 'received' && i.status == 'pending')
+        .length;
   }
 
   @override
@@ -368,6 +343,10 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
         const Divider(),
         SizedBox(height: 8.h),
 
+        // 通知消息入口
+        _buildNotificationTile(context),
+        SizedBox(height: 12.h),
+
         // 聊天区域标题
         Text(
           '聊天',
@@ -378,10 +357,6 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
           ),
         ),
         SizedBox(height: 12.h),
-
-        // 好友请求提示
-        if (_friendRequests.isNotEmpty)
-          _buildFriendRequestBanner(context),
 
         // 聊天列表：私聊会话 + 群聊
         if (hasAnyChat) ...[
@@ -837,93 +812,74 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
     );
   }
 
-  // 好友请求提示横幅
-  Widget _buildFriendRequestBanner(BuildContext context) {
+  // 通知消息入口
+  Widget _buildNotificationTile(BuildContext context) {
     return InkWell(
-      onTap: () {
-        // 点击展开好友请求处理
-        _showFriendRequestsSheet(context);
-      },
+      onTap: () => context.push('/friend/notifications').then((_) => _loadInvites()),
       borderRadius: BorderRadius.circular(12.r),
       child: Container(
-        margin: EdgeInsets.only(bottom: 12.h),
-        padding: EdgeInsets.symmetric(vertical: 12.h, horizontal: 14.w),
+        padding: EdgeInsets.symmetric(vertical: 14.h, horizontal: 14.w),
         decoration: BoxDecoration(
-          color: AppTheme.primaryColor.withValues(alpha: 0.08),
+          color: AppTheme.primaryColor.withValues(alpha: 0.06),
           borderRadius: BorderRadius.circular(12.r),
         ),
         child: Row(
           children: [
-            Icon(
-              Icons.person_add,
-              color: AppTheme.primaryColor,
-              size: 20,
+            Stack(
+              children: [
+                Icon(
+                  Icons.notifications,
+                  color: AppTheme.primaryColor,
+                  size: 24,
+                ),
+                if (_pendingReceivedCount > 0)
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: Container(
+                      width: 8.w,
+                      height: 8.w,
+                      decoration: BoxDecoration(
+                        color: AppTheme.errorColor,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+              ],
             ),
-            SizedBox(width: 10.w),
+            SizedBox(width: 12.w),
             Expanded(
               child: Text(
-                '${_friendRequests.length} 条好友请求',
+                '通知消息',
                 style: TextStyle(
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w500,
-                  color: AppTheme.primaryColor,
+                  fontSize: 15.sp,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).echoTextPrimary,
                 ),
               ),
             ),
+            if (_pendingReceivedCount > 0)
+              Container(
+                margin: EdgeInsets.only(right: 8.w),
+                padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 2.h),
+                decoration: BoxDecoration(
+                  color: AppTheme.errorColor,
+                  borderRadius: BorderRadius.circular(10.r),
+                ),
+                child: Text(
+                  '$_pendingReceivedCount',
+                  style: TextStyle(
+                    fontSize: 11.sp,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
             Icon(
               Icons.chevron_right,
-              size: 18,
-              color: AppTheme.primaryColor,
+              size: 20,
+              color: Theme.of(context).echoTextTertiary,
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showFriendRequestsSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => Container(
-        padding: EdgeInsets.all(16.w),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '好友请求',
-              style: TextStyle(
-                fontSize: 18.sp,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            SizedBox(height: 12.h),
-            ..._friendRequests.map((req) => ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: UserAvatar(
-                id: req.userId,
-                name: req.nickname,
-                imageUrl: req.avatar,
-                size: 40,
-              ),
-              title: Text(req.nickname ?? req.phone),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextButton(
-                    onPressed: () => _handleRejectRequest(req.userId),
-                    child: Text(
-                      '拒绝',
-                      style: TextStyle(color: AppTheme.textSecondaryColor),
-                    ),
-                  ),
-                  ElevatedButton(
-                    onPressed: () => _handleAcceptRequest(req.userId),
-                    child: const Text('接受'),
-                  ),
-                ],
-              ),
-            )),
           ],
         ),
       ),

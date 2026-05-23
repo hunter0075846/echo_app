@@ -1,7 +1,4 @@
-import 'dart:convert';
-
 import '../models/friend_model.dart';
-import 'api_exception.dart';
 import 'api_service.dart';
 
 class FriendService {
@@ -27,15 +24,21 @@ class FriendService {
     await _api.put('/friends', data: {'friendId': friendId});
   }
 
-  Future<void> rejectFriendRequest(String friendId) async {
-    await _api.delete('/friends', data: {'friendId': friendId});
-  }
-
   Future<void> sendFriendRequestByUserId(String userId) async {
     await _api.post('/friends/by-user-id', data: {'userId': userId});
   }
 
   Future<void> deleteFriend(String friendId) async {
     await _api.delete('/friends', data: {'friendId': friendId});
+  }
+
+  Future<List<FriendInviteModel>> getFriendInvites() async {
+    final response = await _api.get('/friends/invites');
+    final List<dynamic> data = response.data;
+    return data.map((item) => FriendInviteModel.fromJson(item)).toList();
+  }
+
+  Future<void> rejectFriendRequest(String friendId) async {
+    await _api.post('/friends/reject', data: {'friendId': friendId});
   }
 }

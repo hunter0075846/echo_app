@@ -18,7 +18,6 @@ class FriendListScreen extends ConsumerStatefulWidget {
 class _FriendListScreenState extends ConsumerState<FriendListScreen> {
   final FriendService _friendService = FriendService();
   List<FriendModel> _friends = [];
-  List<FriendRequestModel> _requests = [];
   bool _isLoading = true;
   bool _showAddDialog = false;
   String _phoneInput = '';
@@ -33,7 +32,6 @@ class _FriendListScreenState extends ConsumerState<FriendListScreen> {
     setState(() => _isLoading = true);
     try {
       _friends = await _friendService.getFriends();
-      _requests = await _friendService.getFriendRequests();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -67,37 +65,6 @@ class _FriendListScreenState extends ConsumerState<FriendListScreen> {
     }
   }
 
-  Future<void> _handleAcceptRequest(String userId) async {
-    try {
-      await _friendService.acceptFriendRequest(userId);
-      await _loadFriends();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('已添加好友')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('操作失败: $e')),
-        );
-      }
-    }
-  }
-
-  Future<void> _handleRejectRequest(String userId) async {
-    try {
-      await _friendService.rejectFriendRequest(userId);
-      await _loadFriends();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('操作失败: $e')),
-        );
-      }
-    }
-  }
-
   String _formatPhone(String phone) {
     if (phone.length == 11) {
       return '${phone.substring(0, 3)}****${phone.substring(7)}';
@@ -122,21 +89,6 @@ class _FriendListScreenState extends ConsumerState<FriendListScreen> {
           : ListView(
               padding: EdgeInsets.all(16.w),
               children: [
-                if (_requests.isNotEmpty) ...[
-                  Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8.h),
-                    child: Text(
-                      '好友请求 (${_requests.length})',
-                      style: TextStyle(
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.textPrimaryColor,
-                      ),
-                    ),
-                  ),
-                  ..._requests.map((request) => _buildRequestItem(request)),
-                  SizedBox(height: 16.h),
-                ],
                 Padding(
                   padding: EdgeInsets.symmetric(vertical: 8.h),
                   child: Text(
@@ -228,59 +180,6 @@ class _FriendListScreenState extends ConsumerState<FriendListScreen> {
     );
   }
 
-  Widget _buildRequestItem(FriendRequestModel request) {
-    return Card(
-      margin: EdgeInsets.only(bottom: 8.h),
-      child: Padding(
-        padding: EdgeInsets.all(12.w),
-        child: Row(
-          children: [
-            UserAvatar(
-              id: request.userId,
-              name: request.nickname,
-              imageUrl: request.avatar,
-              size: 48,
-            ),
-            SizedBox(width: 12.w),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    request.nickname ?? _formatPhone(request.phone),
-                    style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w500),
-                  ),
-                  SizedBox(height: 4.h),
-                  Text(
-                    '请求添加你为好友',
-                    style: TextStyle(fontSize: 12.sp, color: AppTheme.textSecondaryColor),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(width: 12.w),
-            Row(
-              children: [
-                TextButton(
-                  onPressed: () => _handleRejectRequest(request.userId),
-                  child: Text('拒绝', style: TextStyle(color: AppTheme.textSecondaryColor)),
-                ),
-                SizedBox(width: 8.w),
-                ElevatedButton(
-                  onPressed: () => _handleAcceptRequest(request.userId),
-                  style: ElevatedButton.styleFrom(
-                    padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
-                  ),
-                  child: const Text('接受'),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildFriendItem(FriendModel friend) {
     return Card(
       margin: EdgeInsets.only(bottom: 8.h),
@@ -301,6 +200,12 @@ class _FriendListScreenState extends ConsumerState<FriendListScreen> {
                 name: friend.nickname,
                 imageUrl: friend.avatar,
                 size: 48,
+                onTap: () {
+                  context.push('/friend/detail/${friend.friendId}', extra: {
+                    'nickname': friend.nickname,
+                    'avatar': friend.avatar,
+                  });
+                },
               ),
               SizedBox(width: 12.w),
               Expanded(

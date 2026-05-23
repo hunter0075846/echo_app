@@ -19,7 +19,9 @@ import '../screens/profile/privacy_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/profile/terms_screen.dart';
 import '../screens/chat/private_chat_screen.dart';
+import '../screens/friend/friend_detail_screen.dart';
 import '../screens/friend/friend_list_screen.dart';
+import '../screens/friend/friend_notification_screen.dart';
 import '../screens/scanner/qr_scanner_screen.dart';
 import '../screens/topic/create_topic_screen.dart';
 import '../screens/topic/topic_detail_screen.dart';
@@ -146,6 +148,21 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/friends',
         builder: (context, state) => const FriendListScreen(),
+      ),
+      GoRoute(
+        path: '/friend/notifications',
+        builder: (context, state) => const FriendNotificationScreen(),
+      ),
+      GoRoute(
+        path: '/friend/detail/:userId',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return FriendDetailScreen(
+            userId: state.pathParameters['userId']!,
+            nickname: extra?['nickname'] as String?,
+            avatar: extra?['avatar'] as String?,
+          );
+        },
       ),
       GoRoute(
         path: '/scanner',

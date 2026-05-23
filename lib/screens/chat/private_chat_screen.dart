@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../models/private_message_model.dart';
 import '../../providers/auth_provider.dart';
@@ -110,11 +111,19 @@ class _PrivateChatScreenState extends ConsumerState<PrivateChatScreen> {
       appBar: AppBar(
         title: Row(
           children: [
-            UserAvatar(
-              id: widget.userId,
-              name: _nickname,
-              imageUrl: _avatar,
-              size: 36,
+            GestureDetector(
+              onTap: () {
+                context.push('/friend/detail/${widget.userId}', extra: {
+                  'nickname': _nickname,
+                  'avatar': _avatar,
+                });
+              },
+              child: UserAvatar(
+                id: widget.userId,
+                name: _nickname,
+                imageUrl: _avatar,
+                size: 36,
+              ),
             ),
             SizedBox(width: 12.w),
             Expanded(
