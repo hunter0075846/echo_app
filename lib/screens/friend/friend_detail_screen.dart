@@ -534,7 +534,7 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
                     ),
                     _buildDivider(),
                     _buildInfoRow(
-                      icon: Icons.phone_outline,
+                      icon: Icons.phone_outlined,
                       label: '手机号',
                       value: _formatPhone(widget.phone),
                     ),
