@@ -34,7 +34,6 @@ class _OpenClawDetailScreenState extends State<OpenClawDetailScreen> {
 
   final _nameController = TextEditingController();
   final _avatarController = TextEditingController();
-  final _systemPromptController = TextEditingController();
 
   @override
   void initState() {
@@ -46,7 +45,6 @@ class _OpenClawDetailScreenState extends State<OpenClawDetailScreen> {
   void dispose() {
     _nameController.dispose();
     _avatarController.dispose();
-    _systemPromptController.dispose();
     super.dispose();
   }
 
@@ -63,7 +61,6 @@ class _OpenClawDetailScreenState extends State<OpenClawDetailScreen> {
           _connection = connection;
           _nameController.text = connection.name ?? '';
           _avatarController.text = connection.avatar ?? '';
-          _systemPromptController.text = connection.systemPrompt ?? '';
           _isLoading = false;
         });
       }
@@ -100,7 +97,6 @@ class _OpenClawDetailScreenState extends State<OpenClawDetailScreen> {
         widget.connectionId,
         name: _nameController.text.trim().isEmpty ? null : _nameController.text.trim(),
         avatar: _avatarController.text.trim().isEmpty ? null : _avatarController.text.trim(),
-        systemPrompt: _systemPromptController.text.trim().isEmpty ? null : _systemPromptController.text.trim(),
       );
 
       if (mounted) {
@@ -147,7 +143,6 @@ class _OpenClawDetailScreenState extends State<OpenClawDetailScreen> {
       final result = await _service.createConnection(
         name: _connection?.name,
         avatar: _connection?.avatar,
-        systemPrompt: _connection?.systemPrompt,
       );
 
       // 删除旧连接
@@ -297,14 +292,6 @@ class _OpenClawDetailScreenState extends State<OpenClawDetailScreen> {
             label: '头像',
             hint: '输入一个 emoji 或头像 URL',
             controller: _avatarController,
-          ),
-          SizedBox(height: 16.h),
-
-          _buildTextField(
-            label: '系统提示词',
-            hint: '自定义 OpenClaw 的角色和行为',
-            controller: _systemPromptController,
-            maxLines: 4,
           ),
 
           SizedBox(height: 32.h),

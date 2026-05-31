@@ -35,6 +35,7 @@ class _OpenClawChatScreenState extends ConsumerState<OpenClawChatScreen> {
 
   late final OpenClawService _service;
   Timer? _pollTimer;
+  StreamSubscription? _sseSubscription;
 
   @override
   void initState() {
@@ -48,6 +49,7 @@ class _OpenClawChatScreenState extends ConsumerState<OpenClawChatScreen> {
     _messageController.dispose();
     _scrollController.dispose();
     _pollTimer?.cancel();
+    _sseSubscription?.cancel();
     super.dispose();
   }
 
@@ -66,20 +68,45 @@ class _OpenClawChatScreenState extends ConsumerState<OpenClawChatScreen> {
         setState(() {
           _connection = connection;
           _isConnected = connected;
-          _messages.addAll(messages);
+          _messages
+            ..clear()
+            ..addAll(messages);
           _isInitLoading = false;
         });
       }
 
-      // 如果连接已建立，启动轮询获取新消息
+      // 如果连接已建立，启动 SSE 实时推送
       if (connected) {
-        _startPolling();
+        _connectSSE();
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isInitLoading = false);
       }
     }
+  }
+
+  void _connectSSE() {
+    _sseSubscription?.cancel();
+    _sseSubscription = _service.connectSSE(widget.connectionId).listen(
+      (message) {
+        if (mounted) {
+          setState(() {
+            _messages.add(message);
+          });
+          _scrollToBottom();
+        }
+      },
+      onError: (e) {
+        debugPrint('[OpenClawChat] SSE error: $e');
+      },
+      onDone: () {
+        // 连接断开，3秒后重连
+        Future.delayed(const Duration(seconds: 3), () {
+          if (mounted && _isConnected) _connectSSE();
+        });
+      },
+    );
   }
 
   void _startPolling() {
@@ -103,9 +130,10 @@ class _OpenClawChatScreenState extends ConsumerState<OpenClawChatScreen> {
     final content = _messageController.text.trim();
     if (content.isEmpty || !_isConnected) return;
 
+    final tempId = 'temp-${DateTime.now().millisecondsSinceEpoch}';
     setState(() {
       _messages.add(OpenClawMessageModel(
-        id: 'temp-${DateTime.now().millisecondsSinceEpoch}',
+        id: tempId,
         role: 'user',
         content: content,
         createdAt: DateTime.now(),
@@ -117,19 +145,20 @@ class _OpenClawChatScreenState extends ConsumerState<OpenClawChatScreen> {
     _scrollToBottom();
 
     try {
-      await _service.sendMessage(widget.connectionId, content);
-      // 发送成功后立即刷新消息列表，不必等待 2 秒
-      final messages = await _service.getMessages(widget.connectionId);
+      final sentMessage = await _service.sendMessage(widget.connectionId, content);
       if (mounted) {
         setState(() {
-          _messages.clear();
-          _messages.addAll(messages);
+          // 替换 temp 为服务端正式消息，避免与 SSE 推送冲突
+          final tempIndex = _messages.indexWhere((m) => m.id == tempId);
+          if (tempIndex >= 0) {
+            _messages[tempIndex] = sentMessage;
+          }
           _isLoading = false;
         });
       }
-      // 若轮询未启动则启动（发送后大概率会有回复）
-      if (_pollTimer == null || !_pollTimer!.isActive) {
-        _startPolling();
+      // 确保 SSE 已连接
+      if (_sseSubscription == null) {
+        _connectSSE();
       }
     } catch (e) {
       if (mounted) {

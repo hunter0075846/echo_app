@@ -3,7 +3,6 @@ class OpenClawConnectionModel {
   final String id;
   final String? name;
   final String? avatar;
-  final String? systemPrompt;
   final String status; // pending, connected, disconnected
   final String? deviceName;
   final DateTime? connectedAt;
@@ -14,7 +13,6 @@ class OpenClawConnectionModel {
     required this.id,
     this.name,
     this.avatar,
-    this.systemPrompt,
     required this.status,
     this.deviceName,
     this.connectedAt,
@@ -27,7 +25,6 @@ class OpenClawConnectionModel {
       id: json['id'] as String,
       name: json['name'] as String?,
       avatar: json['avatar'] as String?,
-      systemPrompt: json['systemPrompt'] as String? ?? json['system_prompt'] as String?,
       status: json['status'] as String,
       deviceName: json['deviceName'] as String? ?? json['device_name'] as String?,
       connectedAt: json['connectedAt'] != null

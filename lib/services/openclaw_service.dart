@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import '../models/openclaw_connection_model.dart';
 import '../models/openclaw_message_model.dart';
@@ -31,13 +34,11 @@ class OpenClawService {
   Future<Map<String, dynamic>> createConnection({
     String? name,
     String? avatar,
-    String? systemPrompt,
   }) async {
     try {
       final response = await _api.post('/openclaw/connect', data: {
         if (name != null) 'name': name,
         if (avatar != null) 'avatar': avatar,
-        if (systemPrompt != null) 'systemPrompt': systemPrompt,
       });
       return response.data as Map<String, dynamic>;
     } on DioException catch (e) {
@@ -86,13 +87,11 @@ class OpenClawService {
     String connectionId, {
     String? name,
     String? avatar,
-    String? systemPrompt,
   }) async {
     try {
       await _api.patch('/openclaw/$connectionId', data: {
         if (name != null) 'name': name,
         if (avatar != null) 'avatar': avatar,
-        if (systemPrompt != null) 'systemPrompt': systemPrompt,
       });
     } on DioException catch (e) {
       if (e.response?.statusCode == 401) {
@@ -154,6 +153,33 @@ class OpenClawService {
       throw Exception('发送消息失败: $msg');
     } catch (e) {
       throw Exception('发送消息失败: $e');
+    }
+  }
+
+  /// 建立 OpenClaw SSE 连接，实时接收新消息
+  Stream<OpenClawMessageModel> connectSSE(String connectionId) async* {
+    final response = await _api.dio.get(
+      '/openclaw/$connectionId/events',
+      options: Options(
+        responseType: ResponseType.stream,
+        headers: {'Accept': 'text/event-stream'},
+      ),
+    );
+
+    final stream = response.data.stream as Stream<List<int>>;
+    await for (final line in utf8.decoder.bind(stream).transform(const LineSplitter())) {
+      if (line.startsWith('data: ')) {
+        final jsonStr = line.substring(6);
+        if (jsonStr.trim().isEmpty) continue;
+        try {
+          final data = jsonDecode(jsonStr) as Map<String, dynamic>;
+          if (data['type'] == 'message') {
+            yield OpenClawMessageModel.fromJson(data as Map<String, dynamic>);
+          }
+        } catch (_) {
+          // 忽略无法解析的行
+        }
+      }
     }
   }
 }

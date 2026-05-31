@@ -23,7 +23,6 @@ class _OpenClawSetupScreenState extends State<OpenClawSetupScreen> {
 
   final _nameController = TextEditingController();
   final _avatarController = TextEditingController();
-  final _systemPromptController = TextEditingController();
 
   bool _isLoading = true;
   bool _hasError = false;
@@ -51,7 +50,6 @@ class _OpenClawSetupScreenState extends State<OpenClawSetupScreen> {
     _pollTimer?.cancel();
     _nameController.dispose();
     _avatarController.dispose();
-    _systemPromptController.dispose();
     super.dispose();
   }
 
@@ -67,7 +65,6 @@ class _OpenClawSetupScreenState extends State<OpenClawSetupScreen> {
       _status = connection.status;
       _nameController.text = connection.name ?? '';
       _avatarController.text = connection.avatar ?? '';
-      _systemPromptController.text = connection.systemPrompt ?? '';
 
       if (_status == 'pending') {
         // 一并获取 token 和 installScript，避免 loading 结束后闪现表单
@@ -107,7 +104,6 @@ class _OpenClawSetupScreenState extends State<OpenClawSetupScreen> {
       final result = await _service.createConnection(
         name: _nameController.text.trim().isEmpty ? null : _nameController.text.trim(),
         avatar: _avatarController.text.trim().isEmpty ? null : _avatarController.text.trim(),
-        systemPrompt: _systemPromptController.text.trim().isEmpty ? null : _systemPromptController.text.trim(),
       );
 
       _connectionId = result['id'] as String?;
@@ -259,14 +255,6 @@ class _OpenClawSetupScreenState extends State<OpenClawSetupScreen> {
             label: '头像',
             hint: '输入一个 emoji，例如：🦞 🤖 🐱',
             controller: _avatarController,
-          ),
-          SizedBox(height: 16.h),
-
-          _buildTextField(
-            label: '系统提示词',
-            hint: '描述这个 OpenClaw 的角色和行为',
-            controller: _systemPromptController,
-            maxLines: 3,
           ),
 
           SizedBox(height: 32.h),
