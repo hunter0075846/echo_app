@@ -69,7 +69,7 @@ class AssistantHistoryPage {
   });
 }
 
-/// AI助手小安服务
+/// AI助手小E服务
 class AiAssistantService {
   final ApiService _api;
 
@@ -177,7 +177,7 @@ class AiAssistantService {
     );
   }
 
-  /// 获取小安信息
+  /// 获取小E信息
   Future<Map<String, dynamic>> getAssistantInfo() async {
     final response = await _api.get('/ai/assistant');
     return response.data as Map<String, dynamic>;

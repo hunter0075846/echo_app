@@ -7,6 +7,7 @@ import '../../models/friend_model.dart';
 import '../../services/friend_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/avatars/user_avatar.dart';
+import '../../widgets/gradient_scaffold.dart';
 
 class FriendListScreen extends ConsumerStatefulWidget {
   const FriendListScreen({super.key});
@@ -74,7 +75,7 @@ class _FriendListScreenState extends ConsumerState<FriendListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return GradientScaffold(
       appBar: AppBar(
         title: const Text('好友'),
         actions: [
@@ -96,7 +97,7 @@ class _FriendListScreenState extends ConsumerState<FriendListScreen> {
                     style: TextStyle(
                       fontSize: 16.sp,
                       fontWeight: FontWeight.w600,
-                      color: AppTheme.textPrimaryColor,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                 ),
@@ -106,16 +107,16 @@ class _FriendListScreenState extends ConsumerState<FriendListScreen> {
                       padding: EdgeInsets.symmetric(vertical: 40.h),
                       child: Column(
                         children: [
-                          Icon(Icons.people, size: 64.w, color: AppTheme.textTertiaryColor),
+                          Icon(Icons.people, size: 64.w, color: Theme.of(context).echoTextTertiary),
                           SizedBox(height: 16.h),
                           Text(
                             '暂无好友',
-                            style: TextStyle(color: AppTheme.textTertiaryColor),
+                            style: TextStyle(color: Theme.of(context).echoTextTertiary),
                           ),
                           SizedBox(height: 8.h),
                           Text(
                             '点击右上角添加好友',
-                            style: TextStyle(fontSize: 12.sp, color: AppTheme.textTertiaryColor),
+                            style: TextStyle(fontSize: 12.sp, color: Theme.of(context).echoTextTertiary),
                           ),
                         ],
                       ),
@@ -129,7 +130,7 @@ class _FriendListScreenState extends ConsumerState<FriendListScreen> {
           ? Container(
               padding: EdgeInsets.all(16.w),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.only(
                   topLeft: Radius.circular(24.r),
                   topRight: Radius.circular(24.r),
@@ -143,7 +144,7 @@ class _FriendListScreenState extends ConsumerState<FriendListScreen> {
                     style: TextStyle(
                       fontSize: 18.sp,
                       fontWeight: FontWeight.w600,
-                      color: AppTheme.textPrimaryColor,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   SizedBox(height: 16.h),
@@ -219,7 +220,7 @@ class _FriendListScreenState extends ConsumerState<FriendListScreen> {
                     SizedBox(height: 4.h),
                     Text(
                       '好友',
-                      style: TextStyle(fontSize: 12.sp, color: AppTheme.textSecondaryColor),
+                      style: TextStyle(fontSize: 12.sp, color: Theme.of(context).echoTextSecondary),
                     ),
                   ],
                 ),

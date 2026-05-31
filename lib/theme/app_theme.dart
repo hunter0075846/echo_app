@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'color_tokens.dart';
+import 'design_tokens.dart';
 
 class AppTheme {
   // ==================== 向后兼容的静态常量 (Light) ====================
@@ -41,7 +43,7 @@ class AppTheme {
   );
 
   static const LinearGradient accentGradient = LinearGradient(
-    colors: [EchoColors.accent, EchoColors.info],
+    colors: [EchoColors.accent, Color(0xFFE76F51)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
@@ -55,21 +57,22 @@ class AppTheme {
         primaryDark: EchoColors.primaryDark,
         accent: EchoColors.accent,
         accentLight: EchoColors.accentLight,
-        background: EchoColors.background,
-        surface: EchoColors.surface,
-        card: EchoColors.card,
-        textPrimary: EchoColors.textPrimary,
-        textSecondary: EchoColors.textSecondary,
-        textTertiary: EchoColors.textTertiary,
-        border: EchoColors.border,
-        divider: EchoColors.divider,
+        background: EchoLightColors.background,
+        surface: EchoLightColors.surface,
+        surfaceVariant: EchoLightColors.surfaceVariant,
+        card: EchoLightColors.card,
+        textPrimary: EchoLightColors.textPrimary,
+        textSecondary: EchoLightColors.textSecondary,
+        textTertiary: EchoLightColors.textTertiary,
+        border: EchoLightColors.border,
+        divider: EchoLightColors.divider,
         error: EchoColors.error,
         success: EchoColors.success,
         warning: EchoColors.warning,
         info: EchoColors.info,
         anonymous: EchoColors.anonymous,
         anonymousBg: EchoColors.anonymousBg,
-        shadow: EchoColors.shadowLight,
+        shadow: EchoLightColors.shadowMedium,
       );
 
   // ==================== Dark Theme ====================
@@ -81,21 +84,22 @@ class AppTheme {
         primaryDark: EchoColors.darkPrimaryDark,
         accent: EchoColors.darkAccent,
         accentLight: EchoColors.darkAccentLight,
-        background: EchoColors.darkBackground,
-        surface: EchoColors.darkSurface,
-        card: EchoColors.darkCard,
-        textPrimary: EchoColors.darkTextPrimary,
-        textSecondary: EchoColors.darkTextSecondary,
-        textTertiary: EchoColors.darkTextTertiary,
-        border: EchoColors.darkBorder,
-        divider: EchoColors.darkDivider,
+        background: EchoDarkColors.background,
+        surface: EchoDarkColors.surface,
+        surfaceVariant: EchoDarkColors.surfaceVariant,
+        card: EchoDarkColors.card,
+        textPrimary: EchoDarkColors.textPrimary,
+        textSecondary: EchoDarkColors.textSecondary,
+        textTertiary: EchoDarkColors.textTertiary,
+        border: EchoDarkColors.border,
+        divider: EchoDarkColors.divider,
         error: EchoColors.darkError,
         success: EchoColors.darkSuccess,
         warning: EchoColors.darkWarning,
         info: EchoColors.darkInfo,
         anonymous: EchoColors.darkAnonymous,
         anonymousBg: EchoColors.darkAnonymousBg,
-        shadow: EchoColors.darkShadow,
+        shadow: EchoDarkColors.shadow,
       );
 
   // ==================== Theme Builder ====================
@@ -109,6 +113,7 @@ class AppTheme {
     required Color accentLight,
     required Color background,
     required Color surface,
+    required Color surfaceVariant,
     required Color card,
     required Color textPrimary,
     required Color textSecondary,
@@ -124,12 +129,14 @@ class AppTheme {
     required Color shadow,
   }) {
     final isDark = brightness == Brightness.dark;
+    final playfair = GoogleFonts.playfairDisplay;
+    final jakarta = GoogleFonts.plusJakartaSans;
 
     return ThemeData(
       useMaterial3: true,
       brightness: brightness,
       primaryColor: primary,
-      scaffoldBackgroundColor: background,
+      scaffoldBackgroundColor: Colors.transparent,
       cardColor: card,
       dividerColor: divider,
       canvasColor: surface,
@@ -146,6 +153,7 @@ class AppTheme {
         error: error,
         onError: Colors.white,
         surfaceContainerHighest: card,
+        surfaceContainer: surfaceVariant,
         outline: border,
       ),
 
@@ -153,12 +161,12 @@ class AppTheme {
       appBarTheme: AppBarTheme(
         centerTitle: true,
         elevation: 0,
-        scrolledUnderElevation: 4,
-        backgroundColor: surface,
+        scrolledUnderElevation: 0,
+        backgroundColor: Colors.transparent,
         foregroundColor: textPrimary,
-        surfaceTintColor: isDark ? Colors.transparent : primary.withValues(alpha: 0.05),
-        titleTextStyle: TextStyle(
-          fontSize: 18.sp,
+        surfaceTintColor: Colors.transparent,
+        titleTextStyle: playfair(
+          fontSize: 20.sp,
           fontWeight: FontWeight.w600,
           color: textPrimary,
         ),
@@ -167,21 +175,21 @@ class AppTheme {
 
       // ----- Typography -----
       textTheme: TextTheme(
-        displayLarge: TextStyle(fontSize: 32.sp, fontWeight: FontWeight.bold, color: textPrimary),
-        displayMedium: TextStyle(fontSize: 28.sp, fontWeight: FontWeight.bold, color: textPrimary),
-        displaySmall: TextStyle(fontSize: 24.sp, fontWeight: FontWeight.bold, color: textPrimary),
-        headlineLarge: TextStyle(fontSize: 22.sp, fontWeight: FontWeight.w600, color: textPrimary),
-        headlineMedium: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.w600, color: textPrimary),
-        headlineSmall: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w600, color: textPrimary),
-        titleLarge: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w500, color: textPrimary),
-        titleMedium: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w500, color: textPrimary),
-        titleSmall: TextStyle(fontSize: 12.sp, fontWeight: FontWeight.w500, color: textSecondary),
-        bodyLarge: TextStyle(fontSize: 16.sp, color: textPrimary),
-        bodyMedium: TextStyle(fontSize: 14.sp, color: textPrimary),
-        bodySmall: TextStyle(fontSize: 12.sp, color: textSecondary),
-        labelLarge: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w500, color: textSecondary),
-        labelMedium: TextStyle(fontSize: 12.sp, color: textTertiary),
-        labelSmall: TextStyle(fontSize: 10.sp, color: textTertiary),
+        displayLarge: playfair(fontSize: 32.sp, fontWeight: FontWeight.bold, color: textPrimary),
+        displayMedium: playfair(fontSize: 28.sp, fontWeight: FontWeight.bold, color: textPrimary),
+        displaySmall: playfair(fontSize: 24.sp, fontWeight: FontWeight.bold, color: textPrimary),
+        headlineLarge: playfair(fontSize: 22.sp, fontWeight: FontWeight.w600, color: textPrimary),
+        headlineMedium: playfair(fontSize: 18.sp, fontWeight: FontWeight.w600, color: textPrimary),
+        headlineSmall: playfair(fontSize: 16.sp, fontWeight: FontWeight.w600, color: textPrimary),
+        titleLarge: jakarta(fontSize: 16.sp, fontWeight: FontWeight.w600, color: textPrimary),
+        titleMedium: jakarta(fontSize: 14.sp, fontWeight: FontWeight.w500, color: textPrimary),
+        titleSmall: jakarta(fontSize: 12.sp, fontWeight: FontWeight.w500, color: textSecondary),
+        bodyLarge: jakarta(fontSize: 16.sp, color: textPrimary),
+        bodyMedium: jakarta(fontSize: 14.sp, color: textPrimary),
+        bodySmall: jakarta(fontSize: 12.sp, color: textSecondary),
+        labelLarge: jakarta(fontSize: 14.sp, fontWeight: FontWeight.w500, color: textSecondary),
+        labelMedium: jakarta(fontSize: 12.sp, color: textTertiary),
+        labelSmall: jakarta(fontSize: 10.sp, color: textTertiary),
       ),
 
       // ----- ElevatedButton -----
@@ -190,9 +198,9 @@ class AppTheme {
           backgroundColor: primary,
           foregroundColor: Colors.white,
           elevation: 0,
-          padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 12.h),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
-          textStyle: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w500),
+          padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 16.h),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(EchoRadius.lg)),
+          textStyle: jakarta(fontSize: 16.sp, fontWeight: FontWeight.w600),
         ),
       ),
 
@@ -201,9 +209,9 @@ class AppTheme {
         style: OutlinedButton.styleFrom(
           foregroundColor: primary,
           side: BorderSide(color: primary),
-          padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 12.h),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
-          textStyle: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w500),
+          padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 16.h),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(EchoRadius.lg)),
+          textStyle: jakarta(fontSize: 16.sp, fontWeight: FontWeight.w600),
         ),
       ),
 
@@ -212,41 +220,41 @@ class AppTheme {
         style: TextButton.styleFrom(
           foregroundColor: primary,
           padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
-          textStyle: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w500),
+          textStyle: jakarta(fontSize: 14.sp, fontWeight: FontWeight.w500),
         ),
       ),
 
       // ----- InputDecoration -----
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: isDark ? surface : card,
-        contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+        fillColor: Colors.white,
+        contentPadding: EdgeInsets.symmetric(horizontal: EchoSpacing.md, vertical: 16.h),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12.r),
-          borderSide: BorderSide(color: border),
+          borderRadius: BorderRadius.circular(EchoRadius.lg),
+          borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12.r),
-          borderSide: BorderSide(color: border),
+          borderRadius: BorderRadius.circular(EchoRadius.lg),
+          borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12.r),
+          borderRadius: BorderRadius.circular(EchoRadius.lg),
           borderSide: BorderSide(color: primary, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12.r),
+          borderRadius: BorderRadius.circular(EchoRadius.lg),
           borderSide: BorderSide(color: error),
         ),
-        hintStyle: TextStyle(fontSize: 14.sp, color: textTertiary),
+        hintStyle: jakarta(fontSize: 14.sp, color: textTertiary),
       ),
 
       // ----- BottomNavigationBar -----
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor: surface.withValues(alpha: 0.92),
+        backgroundColor: surface,
         selectedItemColor: primary,
         unselectedItemColor: textTertiary,
-        selectedLabelStyle: TextStyle(fontSize: 11.sp, fontWeight: FontWeight.w500),
-        unselectedLabelStyle: TextStyle(fontSize: 11.sp),
+        selectedLabelStyle: jakarta(fontSize: 11.sp, fontWeight: FontWeight.w500),
+        unselectedLabelStyle: jakarta(fontSize: 11.sp),
         type: BottomNavigationBarType.fixed,
         elevation: 0,
         showSelectedLabels: true,
@@ -266,7 +274,7 @@ class AppTheme {
         elevation: 0,
         shadowColor: shadow,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16.r),
+          borderRadius: BorderRadius.circular(EchoRadius.card),
         ),
         margin: EdgeInsets.zero,
       ),
@@ -275,8 +283,8 @@ class AppTheme {
       chipTheme: ChipThemeData(
         backgroundColor: primary.withValues(alpha: 0.08),
         selectedColor: primary,
-        labelStyle: TextStyle(fontSize: 12.sp, color: textSecondary),
-        secondaryLabelStyle: TextStyle(fontSize: 12.sp, color: Colors.white),
+        labelStyle: jakarta(fontSize: 12.sp, color: textSecondary),
+        secondaryLabelStyle: jakarta(fontSize: 12.sp, color: Colors.white),
         padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 0),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6.r)),
       ),
@@ -284,17 +292,17 @@ class AppTheme {
       // ----- SnackBar -----
       snackBarTheme: SnackBarThemeData(
         backgroundColor: isDark ? surface : textPrimary,
-        contentTextStyle: TextStyle(fontSize: 14.sp, color: isDark ? textPrimary : Colors.white),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+        contentTextStyle: jakarta(fontSize: 14.sp, color: isDark ? textPrimary : Colors.white),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(EchoRadius.md)),
         behavior: SnackBarBehavior.floating,
       ),
 
       // ----- Dialog -----
       dialogTheme: DialogThemeData(
         backgroundColor: card,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.r)),
-        titleTextStyle: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.w600, color: textPrimary),
-        contentTextStyle: TextStyle(fontSize: 14.sp, color: textSecondary),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(EchoRadius.xl)),
+        titleTextStyle: playfair(fontSize: 18.sp, fontWeight: FontWeight.w600, color: textPrimary),
+        contentTextStyle: jakarta(fontSize: 14.sp, color: textSecondary),
       ),
 
       // ----- BottomSheet -----
@@ -302,8 +310,8 @@ class AppTheme {
         backgroundColor: card,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(24.r),
-            topRight: Radius.circular(24.r),
+            topLeft: Radius.circular(EchoRadius.xxl),
+            topRight: Radius.circular(EchoRadius.xxl),
           ),
         ),
       ),
@@ -317,6 +325,14 @@ class AppTheme {
         linearTrackColor: divider,
         circularTrackColor: divider,
       ),
+
+      // ----- Page Transitions -----
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+        },
+      ),
     );
   }
 }
@@ -325,9 +341,9 @@ class AppTheme {
 extension EchoTextColors on ThemeData {
   Color get echoTextPrimary => colorScheme.onSurface;
   Color get echoTextSecondary => brightness == Brightness.dark
-      ? EchoColors.darkTextSecondary
-      : EchoColors.textSecondary;
+      ? EchoDarkColors.textSecondary
+      : EchoLightColors.textSecondary;
   Color get echoTextTertiary => brightness == Brightness.dark
-      ? EchoColors.darkTextTertiary
-      : EchoColors.textTertiary;
+      ? EchoDarkColors.textTertiary
+      : EchoLightColors.textTertiary;
 }

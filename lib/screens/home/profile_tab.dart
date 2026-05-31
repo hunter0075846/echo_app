@@ -5,7 +5,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/design_tokens.dart';
 import '../../widgets/avatars/user_avatar.dart';
+import '../../widgets/gradient_scaffold.dart';
 
 class ProfileTab extends ConsumerWidget {
   const ProfileTab({super.key});
@@ -14,224 +16,239 @@ class ProfileTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authStateProvider);
     final user = authState.value;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('我的'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () {
-              // TODO: 打开设置
-            },
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.all(16.w),
-        child: Column(
-          children: [
-            // 用户信息卡片
-            Card(
-              child: Padding(
-                padding: EdgeInsets.all(20.w),
-                child: Row(
-                  children: [
-                    // 头像
-                    UserAvatar(
-                      id: user?.id,
-                      name: user?.nickname,
-                      imageUrl: user?.avatar,
-                      size: 80,
-                    ),
-                    SizedBox(width: 16.w),
-                    // 昵称和手机号
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            user?.nickname ?? '未设置昵称',
-                            style: TextStyle(
-                              fontSize: 20.sp,
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.textPrimaryColor,
-                            ),
-                          ),
-                          SizedBox(height: 4.h),
-                          Text(
-                            user?.phone ?? '',
-                            style: TextStyle(
-                              fontSize: 14.sp,
-                              color: AppTheme.textSecondaryColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    // 编辑按钮
-                    IconButton(
-                      icon: const Icon(Icons.edit_outlined),
-                      onPressed: () {
-                        _showEditNicknameDialog(context, ref, user?.nickname);
-                      },
-                    ),
-                  ],
+    return GradientScaffold(
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
+          child: Column(
+            children: [
+              // 顶部设置按钮
+              Align(
+                alignment: Alignment.centerRight,
+                child: IconButton(
+                  icon: Icon(Icons.settings_outlined, color: theme.echoTextSecondary),
+                  onPressed: () {
+                    // TODO: 打开设置
+                  },
                 ),
               ),
-            ),
-            SizedBox(height: 16.h),
-            // 今日配额
-            Card(
-              child: Padding(
-                padding: EdgeInsets.all(20.w),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '今日配额',
-                      style: TextStyle(
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.textPrimaryColor,
-                      ),
-                    ),
-                    SizedBox(height: 16.h),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _QuotaItem(
-                            icon: Icons.add_circle_outline,
-                            title: '发话题',
-                            used: user?.dailyTopicQuota ?? 0,
-                            total: user?.maxDailyTopicQuota ?? 10,
-                          ),
-                        ),
-                        SizedBox(width: 16.w),
-                        Expanded(
-                          child: _QuotaItem(
-                            icon: Icons.visibility_off_outlined,
-                            title: '匿名发言',
-                            used: user?.anonymousMessageCount ?? 0,
-                            total: 3,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+              SizedBox(height: 8.h),
+              // 头像和用户名
+              UserAvatar(
+                id: user?.id,
+                name: user?.nickname,
+                imageUrl: user?.avatar,
+                size: 100,
+              ),
+              SizedBox(height: 16.h),
+              Text(
+                user?.nickname ?? '未设置昵称',
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-            ),
-            SizedBox(height: 16.h),
-            // 功能列表
-            Card(
-              child: Column(
+              SizedBox(height: 8.h),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 4.h),
+                decoration: BoxDecoration(
+                  color: colorScheme.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(EchoRadius.full),
+                ),
+                child: Text(
+                  '回响用户',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: colorScheme.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              SizedBox(height: 24.h),
+              // 统计卡片
+              Row(
                 children: [
-                  _MenuItem(
-                    icon: Icons.help_outline,
-                    title: '帮助与反馈',
-                    onTap: () {},
+                  Expanded(
+                    child: _StatCard(
+                      value: '${user?.dailyTopicQuota ?? 0}',
+                      label: '今日话题',
+                    ),
                   ),
-                  const Divider(height: 1),
-                  _MenuItem(
-                    icon: Icons.info_outline,
-                    title: '关于回响',
-                    onTap: () {
-                      context.push('/about');
-                    },
+                  SizedBox(width: 12.w),
+                  Expanded(
+                    child: _StatCard(
+                      value: '12',
+                      label: '连续登录',
+                    ),
                   ),
-                  const Divider(height: 1),
-                  _MenuItem(
-                    icon: Icons.logout,
-                    title: '退出登录',
-                    textColor: AppTheme.errorColor,
-                    onTap: () async {
-                      final confirmed = await showDialog<bool>(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text('确认退出'),
-                          content: const Text('确定要退出登录吗？'),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context, false),
-                              child: const Text('取消'),
-                            ),
-                            TextButton(
-                              onPressed: () => Navigator.pop(context, true),
-                              child: const Text('确定'),
-                            ),
-                          ],
-                        ),
-                      );
-                      
-                      if (confirmed == true) {
-                        await ref.read(authStateProvider.notifier).logout();
-                      }
-                    },
+                  SizedBox(width: 12.w),
+                  Expanded(
+                    child: _StatCard(
+                      value: '3',
+                      label: '好友',
+                    ),
                   ),
                 ],
               ),
-            ),
-          ],
+              SizedBox(height: 24.h),
+              // 今日配额
+              _buildQuotaCard(context, ref, user),
+              SizedBox(height: 16.h),
+              // 功能列表
+              _buildSettingsCard(context, ref),
+              SizedBox(height: 24.h),
+              // 退出登录
+              TextButton(
+                onPressed: () async {
+                  final confirmed = await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('确认退出'),
+                      content: const Text('确定要退出登录吗？'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text('取消'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          child: const Text('确定'),
+                        ),
+                      ],
+                    ),
+                  );
+
+                  if (confirmed == true) {
+                    await ref.read(authStateProvider.notifier).logout();
+                  }
+                },
+                child: Text(
+                  '退出登录',
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: AppTheme.errorColor,
+                  ),
+                ),
+              ),
+              SizedBox(height: 20.h),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  void _showEditNicknameDialog(BuildContext context, WidgetRef ref, String? currentNickname) {
-    final controller = TextEditingController(text: currentNickname ?? '');
+  Widget _buildQuotaCard(BuildContext context, WidgetRef ref, dynamic user) {
+    final theme = Theme.of(context);
 
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('修改昵称'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            labelText: '昵称',
-            hintText: '请输入新昵称',
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(EchoRadius.card),
+        boxShadow: [EchoShadows.cardFloat],
+      ),
+      padding: EdgeInsets.all(20.w),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '今日配额',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
           ),
-          maxLength: 20,
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final nickname = controller.text.trim();
-              if (nickname.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('昵称不能为空')),
-                );
-                return;
-              }
-
-              Navigator.pop(context);
-              try {
-                await ref.read(authStateProvider.notifier).updateProfile(nickname: nickname);
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('昵称修改成功')),
-                  );
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('修改失败: $e')),
-                  );
-                }
-              }
-            },
-            child: const Text('保存'),
+          SizedBox(height: 16.h),
+          Row(
+            children: [
+              Expanded(
+                child: _QuotaItem(
+                  icon: Icons.add_circle_outline,
+                  title: '发话题',
+                  used: user?.dailyTopicQuota ?? 0,
+                  total: user?.maxDailyTopicQuota ?? 10,
+                ),
+              ),
+              SizedBox(width: 16.w),
+              Expanded(
+                child: _QuotaItem(
+                  icon: Icons.visibility_off_outlined,
+                  title: '匿名发言',
+                  used: user?.anonymousMessageCount ?? 0,
+                  total: 3,
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
+  Widget _buildSettingsCard(BuildContext context, WidgetRef ref) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(EchoRadius.card),
+        boxShadow: [EchoShadows.cardFloat],
+      ),
+      child: Column(
+        children: [
+          _SettingsItem(
+            icon: Icons.help_outline,
+            title: '帮助与反馈',
+            onTap: () {},
+          ),
+          Divider(height: 1, indent: 56.w, color: AppTheme.dividerColor),
+          _SettingsItem(
+            icon: Icons.info_outline,
+            title: '关于回响',
+            onTap: () {
+              context.push('/about');
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+}
+
+class _StatCard extends StatelessWidget {
+  final String value;
+  final String label;
+
+  const _StatCard({required this.value, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(EchoRadius.lg),
+        boxShadow: [EchoShadows.cardFloat],
+      ),
+      padding: EdgeInsets.symmetric(vertical: 16.h, horizontal: 12.w),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: theme.textTheme.headlineMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          SizedBox(height: 4.h),
+          Text(
+            label,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.echoTextTertiary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _QuotaItem extends StatelessWidget {
@@ -302,30 +319,44 @@ class _QuotaItem extends StatelessWidget {
   }
 }
 
-class _MenuItem extends StatelessWidget {
+class _SettingsItem extends StatelessWidget {
   final IconData icon;
   final String title;
-  final Color? textColor;
   final VoidCallback onTap;
 
-  const _MenuItem({
+  const _SettingsItem({
     required this.icon,
     required this.title,
-    this.textColor,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return ListTile(
-      leading: Icon(icon, color: textColor ?? AppTheme.textSecondaryColor),
+      leading: Container(
+        width: 36.w,
+        height: 36.w,
+        decoration: BoxDecoration(
+          color: colorScheme.primary.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(10.r),
+        ),
+        child: Icon(
+          icon,
+          size: 20.w,
+          color: colorScheme.primary,
+        ),
+      ),
       title: Text(
         title,
         style: TextStyle(
-          color: textColor ?? AppTheme.textPrimaryColor,
+          color: AppTheme.textPrimaryColor,
+          fontSize: 15.sp,
         ),
       ),
-      trailing: const Icon(Icons.chevron_right),
+      trailing: const Icon(Icons.chevron_right, size: 20),
       onTap: onTap,
     );
   }

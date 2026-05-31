@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../../theme/app_theme.dart';
+import '../../widgets/gradient_scaffold.dart';
 
 class MemoryTimelineScreen extends ConsumerWidget {
   final String groupId;
@@ -17,7 +18,7 @@ class MemoryTimelineScreen extends ConsumerWidget {
     // TODO: 实现回忆时间线数据获取
     final memories = _getMockMemories();
 
-    return Scaffold(
+    return GradientScaffold(
       appBar: AppBar(
         title: const Text('群回忆'),
       ),

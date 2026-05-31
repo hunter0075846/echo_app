@@ -8,6 +8,7 @@ import '../../models/openclaw_connection_model.dart';
 import '../../services/openclaw_service.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/gradient_scaffold.dart';
 
 /// OpenClaw 连接详情/设置页
 class OpenClawDetailScreen extends StatefulWidget {
@@ -185,7 +186,7 @@ class _OpenClawDetailScreenState extends State<OpenClawDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return GradientScaffold(
       appBar: AppBar(
         title: const Text('连接设置'),
         actions: [

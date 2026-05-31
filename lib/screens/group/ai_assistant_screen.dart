@@ -4,9 +4,13 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../../providers/assistant_chat_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/design_tokens.dart';
+import '../../utils/animation_utils.dart';
 import '../../widgets/avatars/ai_avatar.dart';
 import '../../widgets/chat_bubble.dart';
+import '../../widgets/echo_error_state.dart';
 import '../../widgets/forward_to_group_dialog.dart';
+import '../../widgets/gradient_scaffold.dart';
 
 class AiAssistantScreen extends ConsumerStatefulWidget {
   final String? groupId;
@@ -110,25 +114,25 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
 
     final chatState = ref.watch(assistantChatNotifierProvider(widget.groupId));
 
-    return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return GradientScaffold(
+      backgroundColor: colorScheme.surface,
       appBar: AppBar(
         title: Row(
           children: [
             AIAvatar(size: 36.w),
-
             SizedBox(width: 12.w),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('小安', style: TextStyle(fontSize: 16.sp)),
+                Text('小E', style: theme.textTheme.titleLarge),
                 Text(
                   'AI助手',
-                  style: TextStyle(
-                    fontSize: 12.sp,
-                    color: AppTheme.textSecondaryColor,
-                    fontWeight: FontWeight.normal,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: theme.echoTextSecondary,
                   ),
                 ),
               ],
@@ -138,11 +142,11 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
         actions: [
           if (chatState.isLoadingMore)
             Padding(
-              padding: EdgeInsets.only(right: 16.w),
+              padding: EdgeInsets.only(right: EchoSpacing.md),
               child: SizedBox(
                 width: 16.w,
                 height: 16.w,
-                child: const CircularProgressIndicator(strokeWidth: 2),
+                child: CircularProgressIndicator(strokeWidth: 2, color: colorScheme.primary),
               ),
             ),
         ],
@@ -151,36 +155,18 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
         children: [
           // 错误 Banner
           if (chatState.errorMessage != null)
-            Container(
-              width: double.infinity,
-              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
-              color: AppTheme.errorColor.withValues(alpha: 0.1),
-              child: Row(
-                children: [
-                  Icon(Icons.error_outline, size: 18.w, color: AppTheme.errorColor),
-                  SizedBox(width: 8.w),
-                  Expanded(
-                    child: Text(
-                      chatState.errorMessage!,
-                      style: TextStyle(fontSize: 13.sp, color: AppTheme.errorColor),
-                    ),
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.close, size: 18.w, color: AppTheme.errorColor),
-                    onPressed: () => ref
-                        .read(assistantChatNotifierProvider(widget.groupId).notifier)
-                        .clearError(),
-                  ),
-                ],
-              ),
+            EchoErrorBanner(
+              message: chatState.errorMessage!,
+              onRetry: () => ref
+                  .read(assistantChatNotifierProvider(widget.groupId).notifier)
+                  .clearError(),
             ),
 
           // 消息列表
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
-              padding: EdgeInsets.all(16.w),
-              cacheExtent: 9999,
+              padding: EdgeInsets.all(EchoSpacing.md),
               itemCount: chatState.messages.length,
               itemBuilder: (context, index) {
                 final message = chatState.messages[index];
@@ -189,17 +175,20 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
                     message.role == 'assistant' &&
                     chatState.isStreaming;
 
-                return ChatBubble(
-                  message: message,
-                  isStreaming: isStreaming,
-                  onRetry: message.status == MessageStatus.failed
-                      ? () => ref
-                          .read(assistantChatNotifierProvider(widget.groupId).notifier)
-                          .retry(message.id)
-                      : null,
-                  onForward: message.role == 'assistant' && !message.isWelcome
-                      ? () => _showForwardDialog(message.content, message.id)
-                      : null,
+                return EchoAnimations.chatMessage(
+                  isUser: message.isUser,
+                  child: ChatBubble(
+                    message: message,
+                    isStreaming: isStreaming,
+                    onRetry: message.status == MessageStatus.failed
+                        ? () => ref
+                            .read(assistantChatNotifierProvider(widget.groupId).notifier)
+                            .retry(message.id)
+                        : null,
+                    onForward: message.role == 'assistant' && !message.isWelcome
+                        ? () => _showForwardDialog(message.content, message.id)
+                        : null,
+                  ),
                 );
               },
             ),
@@ -209,10 +198,10 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
           Container(
             padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: colorScheme.surface,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
+                  color: colorScheme.shadow.withValues(alpha: 0.05),
                   blurRadius: 10,
                   offset: const Offset(0, -5),
                 ),
@@ -226,15 +215,15 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
                       controller: _messageController,
                       enabled: !chatState.isStreaming,
                       decoration: InputDecoration(
-                        hintText: chatState.isStreaming ? '小安正在回复...' : '给小安发消息...',
+                        hintText: chatState.isStreaming ? '小E正在回复...' : '给小E发消息...',
                         filled: true,
-                        fillColor: AppTheme.backgroundColor,
+                        fillColor: colorScheme.surfaceContainer,
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(20.r),
+                          borderRadius: BorderRadius.circular(EchoRadius.full),
                           borderSide: BorderSide.none,
                         ),
                         contentPadding: EdgeInsets.symmetric(
-                          horizontal: 16.w,
+                          horizontal: EchoSpacing.md,
                           vertical: 10.h,
                         ),
                       ),
@@ -243,8 +232,18 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
                   ),
                   SizedBox(width: 8.w),
                   IconButton(
-                    icon: const Icon(Icons.send),
-                    onPressed: chatState.isStreaming ? null : _sendMessage,
+                    icon: Icon(
+                      Icons.send,
+                      color: chatState.isStreaming
+                          ? theme.echoTextTertiary
+                          : colorScheme.primary,
+                    ),
+                    onPressed: chatState.isStreaming
+                        ? null
+                        : () {
+                            EchoHaptics.light();
+                            _sendMessage();
+                          },
                   ),
                 ],
               ),

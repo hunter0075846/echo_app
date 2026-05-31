@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../providers/topic_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/gradient_scaffold.dart';
 
 // 平台特定的文件导入
 import 'create_topic_screen_stub.dart'
@@ -172,7 +173,7 @@ class _CreateTopicScreenState extends ConsumerState<CreateTopicScreen> {
     final user = ref.watch(authStateProvider).value;
     final remainingQuota = (user?.maxDailyTopicQuota ?? 10) - (user?.dailyTopicQuota ?? 0);
 
-    return Scaffold(
+    return GradientScaffold(
       appBar: AppBar(
         title: const Text('发话题'),
         actions: [

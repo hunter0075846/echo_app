@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../config/app_config.dart';
 import '../../services/app_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/gradient_scaffold.dart';
 
 class AboutScreen extends StatefulWidget {
   const AboutScreen({super.key});
@@ -64,7 +67,7 @@ class _AboutScreenState extends State<AboutScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return GradientScaffold(
       appBar: AppBar(
         title: const Text('关于回响'),
       ),
@@ -146,10 +149,17 @@ class _AboutScreenState extends State<AboutScreen> {
               ),
             ),
             SizedBox(height: 16.h),
-            // 协议和条款
+            // 下载和协议
             Card(
               child: Column(
                 children: [
+                  ListTile(
+                    leading: const Icon(Icons.download),
+                    title: const Text('下载最新 APK'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => _showApkDownloadDialog(context),
+                  ),
+                  const Divider(height: 1),
                   ListTile(
                     leading: const Icon(Icons.description_outlined),
                     title: const Text('用户协议'),
@@ -164,6 +174,15 @@ class _AboutScreenState extends State<AboutScreen> {
                     onTap: () => context.push('/privacy'),
                   ),
                 ],
+              ),
+            ),
+            SizedBox(height: 32.h),
+            // 版权信息
+            Text(
+              '© 2024 回响 All Rights Reserved',
+              style: TextStyle(
+                fontSize: 12.sp,
+                color: AppTheme.textTertiaryColor,
               ),
             ),
             SizedBox(height: 32.h),
@@ -300,6 +319,77 @@ class _AboutScreenState extends State<AboutScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _showApkDownloadDialog(BuildContext context) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        content: SizedBox(
+          height: 80,
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      ),
+    );
+
+    String downloadUrl;
+    try {
+      final versionInfo = await AppService().checkUpdate();
+      downloadUrl = versionInfo.downloadUrl;
+    } catch (e) {
+      final baseUrl = AppConfig.apiBaseUrl.replaceFirst('/api', '');
+      downloadUrl = '$baseUrl/app/echo-latest.apk';
+    }
+
+    if (context.mounted) {
+      Navigator.pop(context);
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('下载最新 APK'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('点击以下按钮下载或复制链接：'),
+              SizedBox(height: 12.h),
+              SelectableText(
+                downloadUrl,
+                style: TextStyle(
+                  fontSize: 13.sp,
+                  color: AppTheme.primaryColor,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                await Clipboard.setData(ClipboardData(text: downloadUrl));
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('链接已复制')),
+                  );
+                  Navigator.pop(context);
+                }
+              },
+              child: const Text('复制链接'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final uri = Uri.parse(downloadUrl);
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                }
+                if (context.mounted) Navigator.pop(context);
+              },
+              child: const Text('浏览器下载'),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   Future<void> _launchUrl(String url) async {

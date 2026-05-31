@@ -14,10 +14,14 @@ import '../../services/friend_service.dart';
 import '../../services/openclaw_service.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/design_tokens.dart';
 import '../../widgets/avatars/ai_avatar.dart';
 import '../../widgets/avatars/openclaw_avatar.dart';
 import '../../widgets/avatars/user_avatar.dart';
-import '../../widgets/loading_shimmer.dart';
+import '../../widgets/echo_empty_state.dart';
+import '../../widgets/echo_error_state.dart';
+import '../../widgets/echo_loading_state.dart';
+import '../../widgets/gradient_scaffold.dart';
 
 class GroupListTab extends ConsumerStatefulWidget {
   const GroupListTab({super.key});
@@ -126,7 +130,7 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
   Widget build(BuildContext context) {
     final groupState = ref.watch(groupListProvider);
 
-    return Scaffold(
+    return GradientScaffold(
       appBar: AppBar(
         title: const Text('聊天'),
         actions: [
@@ -212,12 +216,12 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
       ),
       bottomSheet: _showAddFriendSheet
           ? Container(
-              padding: EdgeInsets.all(16.w),
+              padding: EdgeInsets.all(EchoSpacing.md),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(24.r),
-                  topRight: Radius.circular(24.r),
+                  topLeft: Radius.circular(EchoRadius.xxl),
+                  topRight: Radius.circular(EchoRadius.xxl),
                 ),
               ),
               child: Column(
@@ -269,38 +273,13 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
     final conversationState = ref.watch(conversationProvider);
 
     if (state.isLoading && state.groups.isEmpty && _openClawLoading) {
-      return ListView.builder(
-        padding: EdgeInsets.all(16.w),
-        itemCount: 5,
-        itemBuilder: (context, index) => const GroupCardShimmer(),
-      );
+      return const EchoLoadingState.list();
     }
 
     if (state.error != null && state.groups.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.error_outline,
-              size: 48.w,
-              color: Theme.of(context).echoTextTertiary,
-            ),
-            SizedBox(height: 16.h),
-            Text(
-              '加载失败',
-              style: TextStyle(
-                fontSize: 16.sp,
-                color: Theme.of(context).echoTextSecondary,
-              ),
-            ),
-            SizedBox(height: 8.h),
-            TextButton(
-              onPressed: _refreshAll,
-              child: const Text('重试'),
-            ),
-          ],
-        ),
+      return EchoErrorState(
+        message: '加载失败: ${state.error}',
+        onRetry: _refreshAll,
       );
     }
 
@@ -309,8 +288,8 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
     return ListView(
       padding: EdgeInsets.all(16.w),
       children: [
-        // 小安卡片
-        _buildXiaoAnCard(context),
+        // 小E卡片
+        _buildXiaoECard(context),
         SizedBox(height: 8.h),
         const Divider(),
         SizedBox(height: 8.h),
@@ -367,13 +346,19 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
             (group) => _buildGroupTile(context, group),
           ),
         ] else
-          _buildEmptyChatState(context, ref),
+          EchoEmptyState(
+            icon: Icons.chat_bubble_outline,
+            title: '还没有聊天',
+            subtitle: '创建群聊或添加好友开始对话',
+            actionLabel: '创建群聊',
+            onAction: () => _showCreateGroupDialog(context, ref),
+          ),
       ],
     );
   }
 
-  // 小安卡片
-  Widget _buildXiaoAnCard(BuildContext context) {
+  // 小E卡片
+  Widget _buildXiaoECard(BuildContext context) {
     return Card(
       margin: EdgeInsets.zero,
       elevation: 0,
@@ -400,7 +385,7 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
                     Row(
                       children: [
                         Text(
-                          '小安',
+                          '小E',
                           style: TextStyle(
                             fontSize: 15.sp,
                             fontWeight: FontWeight.w600,

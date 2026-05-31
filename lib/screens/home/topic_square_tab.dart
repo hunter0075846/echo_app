@@ -1,13 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../models/topic_model.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/topic_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/design_tokens.dart';
+import '../../utils/animation_utils.dart';
 import '../../widgets/avatars/user_avatar.dart';
-import '../../widgets/loading_shimmer.dart';
+import '../../widgets/echo_card.dart';
+import '../../widgets/echo_empty_state.dart';
+import '../../widgets/echo_error_state.dart';
+import '../../widgets/echo_loading_state.dart';
+import '../../widgets/gradient_scaffold.dart';
 
 class TopicSquareTab extends ConsumerStatefulWidget {
   const TopicSquareTab({super.key});
@@ -56,146 +65,186 @@ class _TopicSquareTabState extends ConsumerState<TopicSquareTab>
   @override
   Widget build(BuildContext context) {
     final topicState = ref.watch(topicListProvider);
+    final authState = ref.watch(authStateProvider);
+    final user = authState.value;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          '话题广场',
-          style: TextStyle(
-            fontSize: 18.sp,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        centerTitle: true,
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: '最新'),
-            Tab(text: '最热'),
-          ],
-        ),
-      ),
-      body: Column(
-        children: [
-          // 搜索栏
-          Padding(
-            padding: EdgeInsets.all(16.w),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: '搜索话题',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                          ref.read(topicListProvider.notifier).setSearchQuery('');
-                          ref.read(topicListProvider.notifier).search();
-                        },
-                      )
-                    : null,
+    return GradientScaffold(
+      body: CustomScrollView(
+        controller: _scrollController,
+        slivers: [
+          // 顶部问候区域
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w, 8.h),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    DateFormat('EEEE, MMMM d').format(DateTime.now()).toUpperCase(),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.echoTextTertiary,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                  SizedBox(height: 4.h),
+                  Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: _greeting(),
+                          style: theme.textTheme.headlineLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: theme.echoTextPrimary,
+                          ),
+                        ),
+                        if (user?.nickname != null) ...[
+                          TextSpan(
+                            text: '\n${user!.nickname}',
+                            style: theme.textTheme.headlineLarge?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: colorScheme.primary,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              onSubmitted: (value) {
-                ref.read(topicListProvider.notifier).setSearchQuery(value);
-                ref.read(topicListProvider.notifier).search();
-              },
             ),
           ),
-          // 话题列表
-          Expanded(
-            child: _buildContent(topicState),
+          // 搜索栏
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(EchoRadius.lg),
+                  boxShadow: [EchoShadows.cardFloat],
+                ),
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: '搜索话题',
+                    hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.echoTextTertiary,
+                    ),
+                    prefixIcon: Icon(Icons.search, color: theme.echoTextTertiary),
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              _searchController.clear();
+                              ref.read(topicListProvider.notifier).setSearchQuery('');
+                              ref.read(topicListProvider.notifier).search();
+                            },
+                          )
+                        : null,
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
+                  ),
+                  onSubmitted: (value) {
+                    ref.read(topicListProvider.notifier).setSearchQuery(value);
+                    ref.read(topicListProvider.notifier).search();
+                  },
+                ),
+              ),
+            ),
           ),
+          // TabBar
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20.w),
+              child: TabBar(
+                controller: _tabController,
+                tabs: const [
+                  Tab(text: '最新'),
+                  Tab(text: '最热'),
+                ],
+                labelStyle: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+                unselectedLabelStyle: theme.textTheme.labelLarge,
+                indicatorSize: TabBarIndicatorSize.label,
+                dividerColor: Colors.transparent,
+              ),
+            ),
+          ),
+          // 内容区域
+          _buildContent(topicState),
         ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
+          EchoHaptics.light();
           context.push('/topic/create');
         },
+        backgroundColor: colorScheme.primary,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(EchoRadius.lg),
+        ),
         child: const Icon(Icons.add),
-      ),
+      ).animate(onPlay: (c) => c.stop()).scale(
+            begin: const Offset(0.9, 0.9),
+            end: const Offset(1.0, 1.0),
+            duration: EchoDurations.slow,
+            curve: EchoCurves.spring,
+          ),
     );
+  }
+
+  String _greeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good morning,';
+    if (hour < 18) return 'Good afternoon,';
+    return 'Good night,';
   }
 
   Widget _buildContent(TopicListState state) {
     // 显示错误
     if (state.error != null && state.topics.isEmpty) {
-      return Center(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: EdgeInsets.all(16.w),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.error_outline,
-                  size: 48.w,
-                  color: AppTheme.errorColor,
-                ),
-                SizedBox(height: 16.h),
-                Text(
-                  '加载失败: ${state.error}',
-                  style: TextStyle(
-                    color: AppTheme.textSecondaryColor,
-                    fontSize: 14.sp,
-                  ),
-                ),
-                SizedBox(height: 16.h),
-                ElevatedButton(
-                  onPressed: () {
-                    ref.read(topicListProvider.notifier).loadTopics(refresh: true);
-                  },
-                  child: const Text('重试'),
-                ),
-              ],
-            ),
-          ),
+      return SliverFillRemaining(
+        child: EchoErrorState(
+          message: '加载失败: ${state.error}',
+          onRetry: () {
+            ref.read(topicListProvider.notifier).loadTopics(refresh: true);
+          },
         ),
       );
     }
 
     // 首次加载中
     if (state.isLoading && state.topics.isEmpty) {
-      return LoadingShimmer();
+      return const SliverFillRemaining(
+        child: EchoLoadingState.list(),
+      );
     }
 
     // 空数据
     if (state.topics.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.inbox_outlined,
-              size: 48.w,
-              color: AppTheme.textTertiaryColor,
-            ),
-            SizedBox(height: 16.h),
-            Text(
-              '暂无话题',
-              style: TextStyle(
-                color: AppTheme.textSecondaryColor,
-                fontSize: 14.sp,
-              ),
-            ),
-            SizedBox(height: 16.h),
-            ElevatedButton(
-              onPressed: () {
-                context.push('/topic/create');
-              },
-              child: const Text('发布第一个话题'),
-            ),
-          ],
+      return SliverFillRemaining(
+        child: EchoEmptyState(
+          icon: Icons.inbox_outlined,
+          title: '暂无话题',
+          subtitle: '成为第一个发起讨论的人吧',
+          actionLabel: '发布话题',
+          onAction: () => context.push('/topic/create'),
         ),
       );
     }
 
     // 显示列表
-    return RefreshIndicator(
-      onRefresh: () => ref.read(topicListProvider.notifier).loadTopics(refresh: true),
-      child: ListView.builder(
-        controller: _scrollController,
-        padding: EdgeInsets.symmetric(horizontal: 16.w),
+    return SliverPadding(
+      padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 8.h),
+      sliver: SliverList.builder(
         itemCount: state.topics.length + (state.isLoadingMore ? 1 : 0),
         itemBuilder: (context, index) {
           if (index == state.topics.length) {
@@ -208,7 +257,10 @@ class _TopicSquareTabState extends ConsumerState<TopicSquareTab>
           }
 
           final topic = state.topics[index];
-          return _TopicCard(topic: topic);
+          return EchoAnimations.staggeredItem(
+            index: index,
+            child: _TopicCard(topic: topic),
+          );
         },
       ),
     );
@@ -222,91 +274,84 @@ class _TopicCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: EdgeInsets.only(bottom: 12.h),
-      child: InkWell(
-        onTap: () {
-          context.push('/topic/${topic.id}');
-        },
-        child: Padding(
-          padding: EdgeInsets.all(16.w),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 标题
+    final theme = Theme.of(context);
+
+    return EchoCard(
+      margin: EdgeInsets.only(bottom: EchoSpacing.md),
+      onTap: () {
+        context.push('/topic/${topic.id}');
+      },
+      child: Padding(
+        padding: EdgeInsets.all(16.w),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              topic.title,
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+                fontSize: 17.sp,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            if (topic.description != null) ...[
+              SizedBox(height: EchoSpacing.sm),
               Text(
-                topic.title,
-                style: TextStyle(
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textPrimaryColor,
+                topic.description!,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.echoTextSecondary,
+                  height: 1.4,
                 ),
-                maxLines: 2,
+                maxLines: 3,
                 overflow: TextOverflow.ellipsis,
               ),
-              if (topic.description != null) ...[
-                SizedBox(height: 8.h),
-                Text(
-                  topic.description!,
-                  style: TextStyle(
-                    fontSize: 14.sp,
-                    color: AppTheme.textSecondaryColor,
-                  ),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-              SizedBox(height: 12.h),
-              // 底部信息
-              Row(
-                children: [
-                  // 作者头像
-                  UserAvatar(
-                    id: topic.author.id,
-                    name: topic.author.nickname,
-                    imageUrl: topic.author.avatar,
-                    size: 24,
-                  ),
-                  SizedBox(width: 8.w),
-                  // 作者名
-                  Text(
-                    topic.author.nickname ?? '匿名用户',
-                    style: TextStyle(
-                      fontSize: 12.sp,
-                      color: AppTheme.textSecondaryColor,
-                    ),
-                  ),
-                  const Spacer(),
-                  // 统计数据
-                  _buildStatItem(Icons.visibility_outlined, topic.viewCount),
-                  SizedBox(width: 16.w),
-                  _buildStatItem(Icons.comment_outlined, topic.commentCount),
-                  SizedBox(width: 16.w),
-                  _buildStatItem(Icons.favorite_outline, topic.likeCount),
-                ],
-              ),
             ],
-          ),
+            SizedBox(height: EchoSpacing.md),
+            Row(
+              children: [
+                UserAvatar(
+                  id: topic.author.id,
+                  name: topic.author.nickname,
+                  imageUrl: topic.author.avatar,
+                  size: 28,
+                ),
+                SizedBox(width: EchoSpacing.sm),
+                Text(
+                  topic.author.nickname ?? '匿名用户',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.echoTextSecondary,
+                  ),
+                ),
+                const Spacer(),
+                _buildStatItem(context, Icons.visibility_outlined, topic.viewCount),
+                SizedBox(width: EchoSpacing.md),
+                _buildStatItem(context, Icons.comment_outlined, topic.commentCount),
+                SizedBox(width: EchoSpacing.md),
+                _buildStatItem(context, Icons.favorite_outline, topic.likeCount),
+              ],
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildStatItem(IconData icon, int count) {
+  Widget _buildStatItem(BuildContext context, IconData icon, int count) {
+    final theme = Theme.of(context);
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(
           icon,
           size: 14.w,
-          color: AppTheme.textTertiaryColor,
+          color: theme.echoTextTertiary,
         ),
         SizedBox(width: 4.w),
         Text(
           count.toString(),
-          style: TextStyle(
-            fontSize: 12.sp,
-            color: AppTheme.textTertiaryColor,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: theme.echoTextTertiary,
           ),
         ),
       ],

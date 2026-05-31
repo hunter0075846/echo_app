@@ -112,7 +112,7 @@ class GroupService {
     });
   }
 
-  // 转发小安回复到群聊（以 agent_quote 类型发送）
+  // 转发小E回复到群聊（以 agent_quote 类型发送）
   Future<void> forwardAssistantMessage({
     required String groupId,
     required String content,

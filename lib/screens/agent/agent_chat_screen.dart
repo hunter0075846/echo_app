@@ -7,7 +7,12 @@ import '../../models/agent_model.dart';
 import '../../services/agent_service.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/design_tokens.dart';
+import '../../utils/animation_utils.dart';
 import '../../widgets/avatars/agent_avatar.dart';
+import '../../widgets/echo_empty_state.dart';
+import '../../widgets/echo_loading_state.dart';
+import '../../widgets/gradient_scaffold.dart';
 
 /// 与第三方AI Agent 一对一对话页面
 class AgentChatScreen extends ConsumerStatefulWidget {
@@ -148,19 +153,22 @@ class _AgentChatScreenState extends ConsumerState<AgentChatScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isInitLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+      return const GradientScaffold(
+        body: Center(child: EchoLoadingState.chat()),
       );
     }
 
     if (_agent == null) {
-      return Scaffold(
+      return GradientScaffold(
         appBar: AppBar(title: const Text('AI助手')),
-        body: const Center(child: Text('Agent不存在')),
+        body: EchoEmptyState(
+          icon: Icons.smart_toy_outlined,
+          title: 'Agent不存在',
+        ),
       );
     }
 
-    return Scaffold(
+    return GradientScaffold(
       appBar: AppBar(
         title: Row(
           children: [
@@ -184,7 +192,7 @@ class _AgentChatScreenState extends ConsumerState<AgentChatScreen> {
                     _agent!.model,
                     style: TextStyle(
                       fontSize: 11.sp,
-                      color: AppTheme.textSecondaryColor,
+                      color: Theme.of(context).echoTextSecondary,
                       fontWeight: FontWeight.normal,
                     ),
                     overflow: TextOverflow.ellipsis,
@@ -239,7 +247,7 @@ class _AgentChatScreenState extends ConsumerState<AgentChatScreen> {
                     '${_agent!.name} 正在思考...',
                     style: TextStyle(
                       fontSize: 12.sp,
-                      color: AppTheme.textSecondaryColor,
+                      color: Theme.of(context).echoTextSecondary,
                     ),
                   ),
                 ],
@@ -250,10 +258,10 @@ class _AgentChatScreenState extends ConsumerState<AgentChatScreen> {
           Container(
             padding: EdgeInsets.all(12.w),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.surface,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
+                  color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.05),
                   blurRadius: 10,
                   offset: const Offset(0, -5),
                 ),
@@ -268,13 +276,13 @@ class _AgentChatScreenState extends ConsumerState<AgentChatScreen> {
                       decoration: InputDecoration(
                         hintText: '给 ${_agent!.name} 发消息...',
                         filled: true,
-                        fillColor: AppTheme.backgroundColor,
+                        fillColor: Theme.of(context).colorScheme.surfaceContainer,
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(20.r),
+                          borderRadius: BorderRadius.circular(EchoRadius.full),
                           borderSide: BorderSide.none,
                         ),
                         contentPadding: EdgeInsets.symmetric(
-                          horizontal: 16.w,
+                          horizontal: EchoSpacing.md,
                           vertical: 10.h,
                         ),
                       ),
@@ -285,7 +293,10 @@ class _AgentChatScreenState extends ConsumerState<AgentChatScreen> {
                   SizedBox(width: 8.w),
                   IconButton(
                     icon: const Icon(Icons.send),
-                    onPressed: _isLoading ? null : _sendMessage,
+                    onPressed: _isLoading ? null : () {
+                      EchoHaptics.light();
+                      _sendMessage();
+                    },
                   ),
                 ],
               ),
@@ -341,7 +352,7 @@ class _EmptyChatState extends StatelessWidget {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14.sp,
-                color: AppTheme.textSecondaryColor,
+                color: Theme.of(context).echoTextSecondary,
               ),
             ),
             if (agent.systemPrompt != null && agent.systemPrompt!.isNotEmpty) ...[
@@ -349,7 +360,7 @@ class _EmptyChatState extends StatelessWidget {
               Container(
                 padding: EdgeInsets.all(12.w),
                 decoration: BoxDecoration(
-                  color: AppTheme.backgroundColor,
+                  color: Theme.of(context).colorScheme.surfaceContainer,
                   borderRadius: BorderRadius.circular(8.r),
                 ),
                 child: Text(
@@ -357,7 +368,7 @@ class _EmptyChatState extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 12.sp,
-                    color: AppTheme.textTertiaryColor,
+                    color: Theme.of(context).echoTextTertiary,
                   ),
                 ),
               ),
@@ -446,12 +457,12 @@ class _ChatBubble extends StatelessWidget {
                       ? AppTheme.primaryColor
                       : message.isError
                           ? AppTheme.errorColor.withValues(alpha: 0.05)
-                          : Colors.white,
+                          : Theme.of(context).colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(16.r),
                   boxShadow: [
                     if (!message.isUser)
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.05),
+                        color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.05),
                         blurRadius: 4,
                         offset: const Offset(0, 2),
                       ),
@@ -462,10 +473,10 @@ class _ChatBubble extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 14.sp,
                     color: message.isUser
-                        ? Colors.white
+                        ? Theme.of(context).colorScheme.onPrimary
                         : message.isError
                             ? AppTheme.errorColor
-                            : AppTheme.textPrimaryColor,
+                            : Theme.of(context).colorScheme.onSurface,
                     height: 1.5,
                   ),
                 ),

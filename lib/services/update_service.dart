@@ -30,6 +30,11 @@ class UpdateService {
         return null;
       }
 
+      // x.y 未变化（仅 z 变化）时，不主动弹框提醒
+      if (!isForceUpdate) {
+        return null;
+      }
+
       return UpdateInfo(
         latestVersion: latestVersion,
         downloadUrl: data['downloadUrl'] as String,

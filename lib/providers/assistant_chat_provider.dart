@@ -321,8 +321,8 @@ class AssistantChatNotifier extends StateNotifier<AssistantChatState> {
 
   ChatMessage _welcomeMessage() {
     final content = _groupId != null
-        ? '你好！我是小安，你的群聊AI助手。\n\n我可以帮你：\n• 推荐热门话题\n• 分析群聊氛围\n• 生成回忆总结\n• 回答关于群聊的问题\n\n有什么我可以帮你的吗？'
-        : '你好！我是小安，你的AI助手。\n\n我可以帮你：\n• 推荐热门话题\n• 分析群聊氛围\n• 生成回忆总结\n• 回答关于群聊的问题\n\n有什么我可以帮你的吗？';
+        ? '你好！我是小E，你的群聊AI助手。\n\n我可以帮你：\n• 推荐热门话题\n• 分析群聊氛围\n• 生成回忆总结\n• 回答关于群聊的问题\n\n有什么我可以帮你的吗？'
+        : '你好！我是小E，你的AI助手。\n\n我可以帮你：\n• 推荐热门话题\n• 分析群聊氛围\n• 生成回忆总结\n• 回答关于群聊的问题\n\n有什么我可以帮你的吗？';
 
     return ChatMessage(
       id: 'welcome',

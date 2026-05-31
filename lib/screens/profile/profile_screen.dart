@@ -6,6 +6,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/gradient_scaffold.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -15,7 +16,7 @@ class ProfileScreen extends ConsumerWidget {
     final authState = ref.watch(authStateProvider);
     final user = authState.value;
 
-    return Scaffold(
+    return GradientScaffold(
       appBar: AppBar(
         title: const Text('我的'),
       ),
@@ -35,9 +36,9 @@ class ProfileScreen extends ConsumerWidget {
                       child: Text(
                         user.nickname?.substring(0, 1).toUpperCase() ??
                             user.phone.substring(0, 1),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 32,
-                          color: Colors.white,
+                          color: Theme.of(context).colorScheme.onPrimary,
                         ),
                       ),
                     ),

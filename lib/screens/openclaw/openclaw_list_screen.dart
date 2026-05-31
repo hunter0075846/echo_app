@@ -8,6 +8,7 @@ import '../../services/openclaw_service.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/avatars/openclaw_avatar.dart';
+import '../../widgets/gradient_scaffold.dart';
 
 /// OpenClaw 连接列表页
 class OpenClawListScreen extends StatefulWidget {
@@ -154,7 +155,7 @@ class _OpenClawListScreenState extends State<OpenClawListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return GradientScaffold(
       appBar: AppBar(
         title: const Text('我的 OpenClaw'),
       ),

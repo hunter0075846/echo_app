@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/avatars/ai_avatar.dart';
+import '../../widgets/echo_button.dart';
+import '../../widgets/echo_text_field.dart';
+import '../../widgets/gradient_scaffold.dart';
 import '../debug/log_viewer_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -76,7 +77,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (!mounted) return;
 
       final errorInfo = ref.read(authStateProvider.notifier).lastErrorInfo;
-      // 注册时命中 409：回到登录模式，提示用户直接登录
       if (_isRegister && errorInfo != null && errorInfo.isPhoneTaken) {
         setState(() {
           _isRegister = false;
@@ -85,7 +85,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         return;
       }
 
-      // 登录/注册成功：根据 from 参数返回原页面
       final state = ref.read(authStateProvider);
       if (state.hasValue && state.value != null) {
         final from = GoRouterState.of(context).uri.queryParameters['from'];
@@ -106,14 +105,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final errorInfo = ref.watch(authStateProvider.notifier).lastErrorInfo;
     final isLoading = _isSubmitting || authState.isLoading;
 
-    return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return GradientScaffold(
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
           IconButton(
-            icon: Icon(Icons.bug_report_outlined, color: AppTheme.textTertiaryColor),
+            icon: Icon(Icons.bug_report_outlined, color: theme.echoTextTertiary),
             tooltip: '查看日志',
             onPressed: () {
               Navigator.push(
@@ -127,137 +128,89 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 24.w),
+            padding: EdgeInsets.symmetric(horizontal: 28.w),
             child: AutofillGroup(
               child: Form(
                 key: _formKey,
                 autovalidateMode: AutovalidateMode.onUserInteraction,
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    SizedBox(height: 20.h),
-                    Center(
-                      child: Column(
-                        children: [
-                          AIAvatar(size: 80.w, animated: true),
-                          SizedBox(height: 16.h),
-                          Text(
-                            '回响',
-                            style: TextStyle(
-                              fontSize: 28.sp,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.textPrimaryColor,
-                            ),
-                          ),
-                          SizedBox(height: 8.h),
-                          Text(
-                            'AI驱动的热门话题广场',
-                            style: TextStyle(
-                              fontSize: 14.sp,
-                              color: AppTheme.textSecondaryColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: 40.h),
-                    Text(
-                      _isRegister ? '注册账号' : '账号登录',
-                      style: TextStyle(
-                        fontSize: 20.sp,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.textPrimaryColor,
-                      ),
-                    ),
                     SizedBox(height: 24.h),
+                    // 标题区域
+                    _buildTitle(theme, colorScheme),
+                    SizedBox(height: 48.h),
                     if (errorInfo != null && _shouldShowBanner(errorInfo)) ...[
                       _ErrorBanner(message: errorInfo.message),
-                      SizedBox(height: 16.h),
+                      SizedBox(height: 24.h),
                     ],
-                    TextFormField(
+                    EchoTextField(
                       controller: _phoneController,
                       keyboardType: TextInputType.phone,
                       maxLength: 11,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      autofillHints: const [AutofillHints.telephoneNumber],
                       textInputAction: TextInputAction.next,
+                      topLabel: _isRegister ? 'YOUR PHONE' : 'YOUR PHONE',
+                      hintText: '请输入手机号',
+                      prefixIcon: const Icon(Icons.phone_outlined),
                       validator: _validatePhone,
-                      decoration: const InputDecoration(
-                        hintText: '请输入手机号',
-                        prefixIcon: Icon(Icons.phone_outlined),
-                        counterText: '',
-                      ),
                     ),
-                    SizedBox(height: 16.h),
-                    TextFormField(
+                    SizedBox(height: 20.h),
+                    EchoTextField(
                       controller: _passwordController,
                       obscureText: _obscurePassword,
-                      enableSuggestions: false,
-                      autocorrect: false,
-                      autofillHints: _isRegister
-                          ? const [AutofillHints.newPassword]
-                          : const [AutofillHints.password],
                       textInputAction:
                           _isRegister ? TextInputAction.next : TextInputAction.done,
-                      onFieldSubmitted: (_) {
+                      onSubmitted: (_) {
                         if (!_isRegister) _submit();
                       },
+                      topLabel: 'YOUR PASSWORD',
+                      hintText: '请输入密码（至少6位）',
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                        ),
+                        onPressed: () {
+                          setState(() => _obscurePassword = !_obscurePassword);
+                        },
+                      ),
                       validator: _validatePassword,
-                      decoration: InputDecoration(
-                        hintText: '请输入密码（至少6位）',
+                    ),
+                    if (_isRegister) ...[
+                      SizedBox(height: 20.h),
+                      EchoTextField(
+                        controller: _confirmPasswordController,
+                        obscureText: _obscureConfirmPassword,
+                        textInputAction: TextInputAction.done,
+                        onSubmitted: (_) => _submit(),
+                        topLabel: 'CONFIRM PASSWORD',
+                        hintText: '请再次输入密码',
                         prefixIcon: const Icon(Icons.lock_outline),
                         suffixIcon: IconButton(
                           icon: Icon(
-                            _obscurePassword
+                            _obscureConfirmPassword
                                 ? Icons.visibility_off
                                 : Icons.visibility,
                           ),
                           onPressed: () {
-                            setState(() => _obscurePassword = !_obscurePassword);
+                            setState(() => _obscureConfirmPassword =
+                                !_obscureConfirmPassword);
                           },
                         ),
-                      ),
-                    ),
-                    if (_isRegister) ...[
-                      SizedBox(height: 16.h),
-                      TextFormField(
-                        controller: _confirmPasswordController,
-                        obscureText: _obscureConfirmPassword,
-                        enableSuggestions: false,
-                        autocorrect: false,
-                        autofillHints: const [AutofillHints.newPassword],
-                        textInputAction: TextInputAction.done,
-                        onFieldSubmitted: (_) => _submit(),
                         validator: _validateConfirmPassword,
-                        decoration: InputDecoration(
-                          hintText: '请再次输入密码',
-                          prefixIcon: const Icon(Icons.lock_outline),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscureConfirmPassword
-                                  ? Icons.visibility_off
-                                  : Icons.visibility,
-                            ),
-                            onPressed: () {
-                              setState(() => _obscureConfirmPassword =
-                                  !_obscureConfirmPassword);
-                            },
-                          ),
-                        ),
                       ),
                     ],
-                    SizedBox(height: 32.h),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 48.h,
-                      child: ElevatedButton(
-                        onPressed: isLoading ? null : _submit,
-                        child: isLoading
-                            ? const CircularProgressIndicator(color: Colors.white)
-                            : Text(_isRegister ? '注册' : '登录'),
-                      ),
+                    SizedBox(height: 40.h),
+                    EchoButton.primary(
+                      label: _isRegister ? '注册' : '登录',
+                      icon: Icons.arrow_forward,
+                      isLoading: isLoading,
+                      isFullWidth: true,
+                      onPressed: _submit,
                     ),
-                    SizedBox(height: 16.h),
+                    SizedBox(height: 20.h),
                     Center(
                       child: TextButton(
                         onPressed: isLoading
@@ -273,9 +226,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               },
                         child: Text(
                           _isRegister ? '已有账号？去登录' : '没有账号？去注册',
-                          style: TextStyle(
-                            fontSize: 14.sp,
-                            color: AppTheme.primaryColor,
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            color: colorScheme.primary,
                           ),
                         ),
                       ),
@@ -287,9 +239,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         },
                         child: Text(
                           '${_isRegister ? "注册" : "登录"}即表示同意《用户协议》和《隐私政策》',
-                          style: TextStyle(
-                            fontSize: 12.sp,
-                            color: AppTheme.textTertiaryColor,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.echoTextTertiary,
                           ),
                         ),
                       ),
@@ -305,13 +256,48 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  // 字段错误（如 401 凭证错）已经通过表单 validator 显示，不重复 banner；
-  // 仅在网络错误、限流、服务端错误等"非字段级"错误时显示顶部 banner。
+  Widget _buildTitle(ThemeData theme, ColorScheme colorScheme) {
+    return Column(
+      children: [
+        Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(
+                text: _isRegister ? '创建你的' : '欢迎回到',
+                style: theme.textTheme.displaySmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: theme.echoTextPrimary,
+                ),
+              ),
+            ],
+          ),
+          textAlign: TextAlign.center,
+        ),
+        SizedBox(height: 4.h),
+        Text(
+          '回响',
+          style: theme.textTheme.displaySmall?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: colorScheme.primary,
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+        SizedBox(height: 12.h),
+        Text(
+          'AI驱动的热门话题广场',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.echoTextSecondary,
+          ),
+        ),
+      ],
+    );
+  }
+
   bool _shouldShowBanner(AuthErrorInfo info) {
-    if (info.isPhoneTaken) return true; // 409：注册命中已存在号，需提示用户切到登录
-    if (info.isInvalidCredentials) return true; // 401 没有 inline 字段，需要 banner
+    if (info.isPhoneTaken) return true;
+    if (info.isInvalidCredentials) return true;
     if (info.isRateLimited) return true;
-    if (info.statusCode == null) return true; // 网络错误
+    if (info.statusCode == null) return true;
     if (info.statusCode! >= 500) return true;
     return false;
   }
@@ -328,7 +314,7 @@ class _ErrorBanner extends StatelessWidget {
       padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
       decoration: BoxDecoration(
         color: AppTheme.errorColor.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8.r),
+        borderRadius: BorderRadius.circular(12.r),
         border: Border.all(color: AppTheme.errorColor.withValues(alpha: 0.3)),
       ),
       child: Row(

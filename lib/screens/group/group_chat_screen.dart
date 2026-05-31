@@ -11,7 +11,13 @@ import '../../providers/group_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/group_service.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/design_tokens.dart';
+import '../../utils/animation_utils.dart';
 import '../../widgets/avatars/user_avatar.dart';
+import '../../widgets/echo_dialog.dart';
+import '../../widgets/echo_error_state.dart';
+import '../../widgets/echo_loading_state.dart';
+import '../../widgets/gradient_scaffold.dart';
 
 class GroupChatScreen extends ConsumerStatefulWidget {
   final String groupId;
@@ -31,6 +37,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
   final GroupService _groupService = GroupService();
   bool _isAnonymous = false;
   StreamSubscription? _sseSubscription;
+  bool _sseError = false;
 
   @override
   void initState() {
@@ -53,10 +60,11 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
         ref.read(groupDetailProvider(widget.groupId).notifier).addMessageFromSSE(message);
       },
       onError: (e) {
-        // SSE 断线不弹错误，静默处理，依靠轮询兜底
         debugPrint('[GroupChat] SSE error: $e');
+        if (mounted) setState(() => _sseError = true);
       },
       onDone: () {
+        if (mounted) setState(() => _sseError = true);
         // 连接断开，3秒后重连
         Future.delayed(const Duration(seconds: 3), () {
           if (mounted) _connectSSE();
@@ -89,7 +97,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
     final groupState = ref.watch(groupDetailProvider(widget.groupId));
     final currentUser = ref.watch(authStateProvider).value;
 
-    return Scaffold(
+    return GradientScaffold(
       appBar: AppBar(
         title: groupState.group != null
             ? Column(
@@ -126,21 +134,33 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
       ),
       body: Column(
         children: [
+          // SSE 断开提示
+          if (_sseError)
+            EchoErrorBanner(
+              message: '实时连接已断开，正在尝试重连...',
+              onRetry: () {
+                setState(() => _sseError = false);
+                _connectSSE();
+              },
+            ),
           // 消息列表
           Expanded(
             child: groupState.isLoadingMessages
-                ? const Center(child: CircularProgressIndicator())
+                ? const EchoLoadingState.chat()
                 : ListView.builder(
                     controller: _scrollController,
-                    padding: EdgeInsets.all(16.w),
+                    padding: EdgeInsets.all(EchoSpacing.md),
                     reverse: true,
                     itemCount: groupState.messages.length,
                     itemBuilder: (context, index) {
                       final message = groupState.messages[index];
                       final isMe = message.senderId == currentUser?.id;
-                      return _ChatMessage(
-                        message: message,
-                        isMe: isMe,
+                      return EchoAnimations.chatMessage(
+                        isUser: isMe,
+                        child: _ChatMessage(
+                          message: message,
+                          isMe: isMe,
+                        ),
                       );
                     },
                   ),
@@ -149,10 +169,10 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
           Container(
             padding: EdgeInsets.all(12.w),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.surface,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
+                  color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.05),
                   blurRadius: 10,
                   offset: const Offset(0, -5),
                 ),
@@ -218,7 +238,10 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
                     SizedBox(width: 8.w),
                     IconButton(
                       icon: const Icon(Icons.send),
-                      onPressed: _sendMessage,
+                      onPressed: () {
+                        EchoHaptics.light();
+                        _sendMessage();
+                      },
                     ),
                   ],
                 ),
@@ -314,165 +337,67 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
     }
   }
 
-  void _showLeaveConfirm(BuildContext parentContext, WidgetRef ref) {
-    showDialog(
+  void _showLeaveConfirm(BuildContext parentContext, WidgetRef ref) async {
+    final confirmed = await EchoDialog.confirm(
       context: parentContext,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('退出群聊'),
-        content: const Text('确定要退出这个群聊吗？'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(dialogContext);
-              try {
-                await ref.read(groupDetailProvider(widget.groupId).notifier).leaveGroup();
-                // 从群聊列表中移除该群聊
-                await ref.read(groupListProvider.notifier).removeGroup(widget.groupId);
-                if (parentContext.mounted) {
-                  Navigator.pop(parentContext);
-                }
-              } catch (e) {
-                if (parentContext.mounted) {
-                  ScaffoldMessenger.of(parentContext).showSnackBar(
-                    SnackBar(content: Text('退出失败: $e')),
-                  );
-                }
-              }
-            },
-            child: Text('退出', style: TextStyle(color: AppTheme.errorColor)),
-          ),
-        ],
-      ),
+      title: '退出群聊',
+      content: '确定要退出这个群聊吗？',
+      confirmLabel: '退出',
+      isDestructive: true,
     );
+    if (!confirmed) return;
+
+    try {
+      await ref.read(groupDetailProvider(widget.groupId).notifier).leaveGroup();
+      await ref.read(groupListProvider.notifier).removeGroup(widget.groupId);
+      if (parentContext.mounted) {
+        Navigator.pop(parentContext);
+      }
+    } catch (e) {
+      if (parentContext.mounted) {
+        ScaffoldMessenger.of(parentContext).showSnackBar(
+          SnackBar(content: Text('退出失败: $e')),
+        );
+      }
+    }
   }
 
-  void _showDeleteConfirm(BuildContext context, WidgetRef ref) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        icon: Icon(Icons.warning_amber_rounded, color: AppTheme.errorColor, size: 48.w),
-        title: Text(
-          '解散群聊',
-          style: TextStyle(color: AppTheme.errorColor, fontWeight: FontWeight.bold),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('此操作将永久删除该群聊，包括：'),
-            SizedBox(height: 12.h),
-            _buildRiskItem('所有聊天记录'),
-            _buildRiskItem('所有群成员关系'),
-            _buildRiskItem('群聊设置和数据'),
-            SizedBox(height: 16.h),
-            Container(
-              padding: EdgeInsets.all(12.w),
-              decoration: BoxDecoration(
-                color: AppTheme.errorColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8.r),
-                border: Border.all(color: AppTheme.errorColor.withValues(alpha: 0.3)),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, color: AppTheme.errorColor, size: 20.w),
-                  SizedBox(width: 8.w),
-                  Expanded(
-                    child: Text(
-                      '此操作不可恢复，请谨慎操作！',
-                      style: TextStyle(
-                        color: AppTheme.errorColor,
-                        fontSize: 13.sp,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              // 二次确认
-              _showFinalDeleteConfirm(context, ref);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.errorColor,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('确认解散'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRiskItem(String text) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: 8.h),
-      child: Row(
-        children: [
-          Icon(Icons.remove_circle_outline, color: AppTheme.errorColor, size: 16.w),
-          SizedBox(width: 8.w),
-          Text(
-            text,
-            style: TextStyle(
-              fontSize: 14.sp,
-              color: AppTheme.textSecondaryColor,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showFinalDeleteConfirm(BuildContext parentContext, WidgetRef ref) {
-    showDialog(
+  void _showDeleteConfirm(BuildContext parentContext, WidgetRef ref) async {
+    final confirmed = await EchoDialog.confirm(
       context: parentContext,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(
-          '最后确认',
-          style: TextStyle(color: AppTheme.errorColor, fontWeight: FontWeight.bold),
-        ),
-        content: const Text('你真的确定要解散这个群聊吗？此操作一旦执行将无法撤销。'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(dialogContext);
-              try {
-                await ref.read(groupDetailProvider(widget.groupId).notifier).deleteGroup();
-                // 从群聊列表中移除该群聊
-                await ref.read(groupListProvider.notifier).removeGroup(widget.groupId);
-                if (parentContext.mounted) {
-                  Navigator.pop(parentContext);
-                }
-              } catch (e) {
-                if (parentContext.mounted) {
-                  ScaffoldMessenger.of(parentContext).showSnackBar(
-                    SnackBar(content: Text('解散失败: $e')),
-                  );
-                }
-              }
-            },
-            child: Text('确认解散', style: TextStyle(color: AppTheme.errorColor)),
-          ),
-        ],
-      ),
+      title: '解散群聊',
+      content: '此操作将永久删除该群聊，包括所有聊天记录、群成员关系和群聊设置。此操作不可恢复，请谨慎操作！',
+      confirmLabel: '确认解散',
+      isDestructive: true,
     );
+    if (!confirmed) return;
+
+    _showFinalDeleteConfirm(parentContext, ref);
+  }
+
+  void _showFinalDeleteConfirm(BuildContext parentContext, WidgetRef ref) async {
+    final confirmed = await EchoDialog.confirm(
+      context: parentContext,
+      title: '最后确认',
+      content: '你真的确定要解散这个群聊吗？此操作一旦执行将无法撤销。',
+      confirmLabel: '确认解散',
+      isDestructive: true,
+    );
+    if (!confirmed) return;
+
+    try {
+      await ref.read(groupDetailProvider(widget.groupId).notifier).deleteGroup();
+      await ref.read(groupListProvider.notifier).removeGroup(widget.groupId);
+      if (parentContext.mounted) {
+        Navigator.pop(parentContext);
+      }
+    } catch (e) {
+      if (parentContext.mounted) {
+        ScaffoldMessenger.of(parentContext).showSnackBar(
+          SnackBar(content: Text('解散失败: $e')),
+        );
+      }
+    }
   }
 }
 
@@ -567,12 +492,12 @@ class _ChatMessage extends StatelessWidget {
                               ? AppTheme.anonymousBgColor
                               : _isBotMessage(message)
                                   ? AppTheme.primaryColor.withValues(alpha: 0.08)
-                                  : Colors.white,
+                                  : Theme.of(context).colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(16.r),
                       boxShadow: [
                         if (!isMe)
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.05),
+                            color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.05),
                             blurRadius: 4,
                             offset: const Offset(0, 2),
                           ),
@@ -677,7 +602,7 @@ class _ChatMessage extends StatelessWidget {
     return '$ownerName的$botName';
   }
 
-  // 小安转发卡片
+  // 小E转发卡片
   Widget _buildAgentQuoteCard(BuildContext context) {
     final metadata = message.metadata;
     final sourceId = metadata != null ? metadata['sourceId'] as String? : null;
@@ -691,7 +616,7 @@ class _ChatMessage extends StatelessWidget {
             Icon(Icons.smart_toy, size: 14.w, color: AppTheme.primaryColor),
             SizedBox(width: 4.w),
             Text(
-              '转发自小安',
+              '转发自小E',
               style: TextStyle(
                 fontSize: 12.sp,
                 color: AppTheme.primaryColor,
@@ -712,7 +637,7 @@ class _ChatMessage extends StatelessWidget {
           SizedBox(height: 6.h),
           GestureDetector(
             onTap: () {
-              // 跳转到小安页，高亮 sourceId 消息
+              // 跳转到小E页，高亮 sourceId 消息
               // TODO: 高亮定位（v1.1）
               context.push('/ai-assistant');
             },

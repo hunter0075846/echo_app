@@ -7,6 +7,7 @@ import '../../models/agent_model.dart';
 import '../../services/agent_service.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/gradient_scaffold.dart';
 
 /// 创建/编辑 AI Agent 页面
 /// 最大限度简化配置，必填项只有：名称、API地址、API Key、模型
@@ -189,7 +190,7 @@ class _AgentCreateScreenState extends ConsumerState<AgentCreateScreen> {
   Widget build(BuildContext context) {
     final isEdit = _existingAgent != null;
 
-    return Scaffold(
+    return GradientScaffold(
       appBar: AppBar(
         title: Text(isEdit ? '编辑AI助手' : '添加AI助手'),
       ),

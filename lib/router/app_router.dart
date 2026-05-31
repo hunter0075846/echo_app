@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
+import '../utils/animation_utils.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/group/ai_assistant_screen.dart';
 import '../screens/group/group_bots_screen.dart';
@@ -74,14 +75,20 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/topic/:id',
-        builder: (context, state) => TopicDetailScreen(
-          topicId: state.pathParameters['id']!,
+        pageBuilder: (context, state) => EchoPageTransitions.sharedAxis(
+          key: state.pageKey,
+          child: TopicDetailScreen(
+            topicId: state.pathParameters['id']!,
+          ),
         ),
       ),
       GoRoute(
         path: '/group/:id',
-        builder: (context, state) => GroupChatScreen(
-          groupId: state.pathParameters['id']!,
+        pageBuilder: (context, state) => EchoPageTransitions.sharedAxis(
+          key: state.pageKey,
+          child: GroupChatScreen(
+            groupId: state.pathParameters['id']!,
+          ),
         ),
       ),
       GoRoute(
@@ -104,11 +111,17 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/ai-assistant',
-        builder: (context, state) => const AiAssistantScreen(),
+        pageBuilder: (context, state) => EchoPageTransitions.fadeUp(
+          key: state.pageKey,
+          child: const AiAssistantScreen(),
+        ),
       ),
       GoRoute(
         path: '/profile',
-        builder: (context, state) => const ProfileScreen(),
+        pageBuilder: (context, state) => EchoPageTransitions.fadeUp(
+          key: state.pageKey,
+          child: const ProfileScreen(),
+        ),
       ),
       GoRoute(
         path: '/about',
@@ -135,8 +148,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/openclaw/chat',
-        builder: (context, state) => OpenClawChatScreen(
-          connectionId: state.uri.queryParameters['id']!,
+        pageBuilder: (context, state) => EchoPageTransitions.fadeUp(
+          key: state.pageKey,
+          child: OpenClawChatScreen(
+            connectionId: state.uri.queryParameters['id']!,
+          ),
         ),
       ),
       GoRoute(
@@ -170,12 +186,15 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/chat/:userId',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final extra = state.extra as Map<String, dynamic>?;
-          return PrivateChatScreen(
-            userId: state.pathParameters['userId']!,
-            nickname: extra?['nickname'] as String?,
-            avatar: extra?['avatar'] as String?,
+          return EchoPageTransitions.fadeUp(
+            key: state.pageKey,
+            child: PrivateChatScreen(
+              userId: state.pathParameters['userId']!,
+              nickname: extra?['nickname'] as String?,
+              avatar: extra?['avatar'] as String?,
+            ),
           );
         },
       ),

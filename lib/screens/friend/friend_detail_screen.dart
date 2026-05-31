@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../services/friend_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/avatars/user_avatar.dart';
+import '../../widgets/gradient_scaffold.dart';
 
 class FriendDetailScreen extends StatefulWidget {
   final String userId;
@@ -29,7 +31,6 @@ class FriendDetailScreen extends StatefulWidget {
 
 class _FriendDetailScreenState extends State<FriendDetailScreen> {
   final FriendService _friendService = FriendService();
-  bool _isDeleting = false;
   bool _isOnline = true;
   int _commonFriends = 0;
   bool _isLoadingCommonFriends = false;
@@ -58,7 +59,7 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
   }
 
   String _formatDate(DateTime? date) {
-    if (date == null) return '';
+    if (date == null) return '-';
     final now = DateTime.now();
     final diff = now.difference(date);
     if (diff.inDays == 0) return '今天添加';
@@ -70,90 +71,13 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
   }
 
   void _showShareOptions() {
-    showModalBottomSheet(
-      context: context,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(20.r),
-          topRight: Radius.circular(20.r),
-        ),
-      ),
-      builder: (context) => Container(
-        padding: EdgeInsets.all(20.w),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              '分享好友',
-              style: TextStyle(
-                fontSize: 18.sp,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            SizedBox(height: 20.h),
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.qr_code, size: 48),
-                        color: AppTheme.primaryColor,
-                        onPressed: () {
-                          Navigator.pop(context);
-                          _showQrCodeDialog();
-                        },
-                      ),
-                      SizedBox(height: 8.h),
-                      const Text('分享二维码'),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: Column(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.copy, size: 48),
-                        color: AppTheme.primaryColor,
-                        onPressed: () {
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('链接已复制到剪贴板')),
-                          );
-                        },
-                      ),
-                      SizedBox(height: 8.h),
-                      const Text('复制链接'),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: Column(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.share, size: 48),
-                        color: AppTheme.primaryColor,
-                        onPressed: () {
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('分享功能已触发')),
-                          );
-                        },
-                      ),
-                      SizedBox(height: 8.h),
-                      const Text('分享给好友'),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 20.h),
-          ],
-        ),
-      ),
+    Share.share(
+      '${widget.nickname ?? '用户'} 的个人主页：echo://friend/${widget.userId}',
+      subject: '分享好友 ${widget.nickname ?? '用户'}',
     );
   }
 
+  // ignore: unused_element
   void _showQrCodeDialog() {
     showDialog(
       context: context,
@@ -339,7 +263,6 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
-              setState(() => _isDeleting = true);
               try {
                 await _friendService.deleteFriend(widget.userId);
                 if (mounted) {
@@ -354,8 +277,6 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
                     SnackBar(content: Text('删除失败: $e')),
                   );
                 }
-              } finally {
-                if (mounted) setState(() => _isDeleting = false);
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: AppTheme.errorColor),
@@ -370,16 +291,34 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
   Widget build(BuildContext context) {
     final displayName = widget.nickname ?? '用户';
 
-    return Scaffold(
+    return GradientScaffold(
       appBar: AppBar(
         title: const Text('好友详情'),
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) {
+              if (value == 'delete') {
+                _showDeleteConfirm();
+              }
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'delete',
+                child: Text(
+                  '删除好友',
+                  style: TextStyle(color: AppTheme.errorColor),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
       body: ListView(
-        padding: EdgeInsets.zero,
+        padding: EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom),
         children: [
           // 顶部渐变背景卡片
           Container(
-            height: 280.h,
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [AppTheme.primaryColor, AppTheme.primaryColor.withOpacity(0.6)],
@@ -398,117 +337,133 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
                 ),
               ],
             ),
-            child: Padding(
-              padding: EdgeInsets.all(24.w),
-              child: Column(
-                children: [
-                  // 头像区域
-                  Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // 头像外发光效果
-                      Container(
-                        width: 120.w,
-                        height: 120.w,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Colors.white, Colors.white30],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.white.withOpacity(0.5),
-                              blurRadius: 20,
-                              offset: const Offset(0, 5),
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 24.h),
+                child: Column(
+                  children: [
+                    // 头像区域
+                    Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // 头像外发光效果
+                        Container(
+                          width: 120.w,
+                          height: 120.w,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Colors.white, Colors.white30],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
                             ),
-                          ],
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.white.withOpacity(0.5),
+                                blurRadius: 20,
+                                offset: const Offset(0, 5),
+                              ),
+                            ],
+                          ),
                         ),
+                        // 头像
+                        UserAvatar(
+                          id: widget.userId,
+                          name: widget.nickname,
+                          imageUrl: widget.avatar,
+                          size: 100,
+                        ),
+                        // 在线状态指示器
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: Container(
+                            width: 24.w,
+                            height: 24.w,
+                            decoration: BoxDecoration(
+                              color: _isOnline ? Colors.green : Colors.grey,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 3),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 20.h),
+                    // 昵称和在线状态
+                    Text(
+                      displayName,
+                      style: TextStyle(
+                        fontSize: 24.sp,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
                       ),
-                      // 头像
-                      UserAvatar(
-                        id: widget.userId,
-                        name: widget.nickname,
-                        imageUrl: widget.avatar,
-                        size: 100,
-                      ),
-                      // 在线状态指示器
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: Container(
-                          width: 24.w,
-                          height: 24.w,
+                    ),
+                    SizedBox(height: 8.h),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 8.w,
+                          height: 8.w,
                           decoration: BoxDecoration(
                             color: _isOnline ? Colors.green : Colors.grey,
                             shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 3),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 20.h),
-                  // 昵称和在线状态
-                  Text(
-                    displayName,
-                    style: TextStyle(
-                      fontSize: 24.sp,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
+                        SizedBox(width: 6.w),
+                        Text(
+                          _isOnline ? '在线' : '离线',
+                          style: TextStyle(
+                            fontSize: 14.sp,
+                            color: Colors.white.withOpacity(0.8),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  SizedBox(height: 8.h),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 8.w,
-                        height: 8.w,
-                        decoration: BoxDecoration(
-                          color: _isOnline ? Colors.green : Colors.grey,
-                          shape: BoxShape.circle,
+                    SizedBox(height: 16.h),
+                    // 快捷操作按钮
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // 发消息
+                        _buildActionButton(
+                          icon: Icons.message,
+                          label: '消息',
+                          onTap: () {
+                            context.push('/chat/${widget.userId}', extra: {
+                              'userId': widget.userId,
+                              'nickname': widget.nickname,
+                              'avatar': widget.avatar,
+                            });
+                          },
                         ),
-                      ),
-                      SizedBox(width: 6.w),
-                      Text(
-                        _isOnline ? '在线' : '离线',
-                        style: TextStyle(
-                          fontSize: 14.sp,
-                          color: Colors.white.withOpacity(0.8),
+                        SizedBox(width: 24.w),
+                        // 语音通话
+                        _buildActionButton(
+                          icon: Icons.phone,
+                          label: '语音',
+                          onTap: () => _handleCall('voice'),
                         ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 16.h),
-                  // 快捷操作按钮
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // 语音通话
-                      _buildActionButton(
-                        icon: Icons.phone,
-                        label: '语音',
-                        onTap: () => _handleCall('voice'),
-                      ),
-                      SizedBox(width: 24.w),
-                      // 视频通话
-                      _buildActionButton(
-                        icon: Icons.video_call,
-                        label: '视频',
-                        onTap: () => _handleCall('video'),
-                      ),
-                      SizedBox(width: 24.w),
-                      // 分享
-                      _buildActionButton(
-                        icon: Icons.share,
-                        label: '分享',
-                        onTap: _showShareOptions,
-                      ),
-                    ],
-                  ),
-                ],
+                        SizedBox(width: 24.w),
+                        // 视频通话
+                        _buildActionButton(
+                          icon: Icons.video_call,
+                          label: '视频',
+                          onTap: () => _handleCall('video'),
+                        ),
+                        SizedBox(width: 24.w),
+                        // 分享
+                        _buildActionButton(
+                          icon: Icons.share,
+                          label: '分享',
+                          onTap: _showShareOptions,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -556,57 +511,6 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
                   ],
                 ),
               ),
-            ),
-          ),
-
-          SizedBox(height: 24.h),
-
-          // 操作按钮区域
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16.w),
-            child: Column(
-              children: [
-                ElevatedButton.icon(
-                  onPressed: () {
-                    context.push('/chat/${widget.userId}', extra: {
-                      'userId': widget.userId,
-                      'nickname': widget.nickname,
-                      'avatar': widget.avatar,
-                    });
-                  },
-                  icon: const Icon(Icons.message),
-                  label: const Text('发消息'),
-                  style: ElevatedButton.styleFrom(
-                    padding: EdgeInsets.symmetric(vertical: 16.h),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16.r),
-                    ),
-                    elevation: 4,
-                  ),
-                ),
-                SizedBox(height: 12.h),
-                OutlinedButton.icon(
-                  onPressed: _isDeleting ? null : _showDeleteConfirm,
-                  icon: _isDeleting
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.delete_outline, color: AppTheme.errorColor),
-                  label: Text(
-                    '删除好友',
-                    style: TextStyle(color: AppTheme.errorColor),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    padding: EdgeInsets.symmetric(vertical: 16.h),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16.r),
-                    ),
-                    side: const BorderSide(color: AppTheme.errorColor),
-                  ),
-                ),
-              ],
             ),
           ),
 

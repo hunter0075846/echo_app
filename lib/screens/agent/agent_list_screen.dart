@@ -7,6 +7,10 @@ import '../../models/agent_model.dart';
 import '../../services/agent_service.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/echo_empty_state.dart';
+import '../../widgets/echo_error_state.dart';
+import '../../widgets/echo_loading_state.dart';
+import '../../widgets/gradient_scaffold.dart';
 
 final agentServiceProvider = Provider<AgentService>((ref) {
   return AgentService(ApiService());
@@ -24,7 +28,7 @@ class AgentListScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final agentsAsync = ref.watch(agentsProvider);
 
-    return Scaffold(
+    return GradientScaffold(
       appBar: AppBar(
         title: const Text('我的AI助手'),
         actions: [
@@ -55,24 +59,10 @@ class AgentListScreen extends ConsumerWidget {
             },
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.error_outline, size: 48, color: AppTheme.errorColor),
-              SizedBox(height: 16.h),
-              Text(
-                '加载失败: $err',
-                style: TextStyle(color: AppTheme.textSecondaryColor),
-              ),
-              SizedBox(height: 16.h),
-              ElevatedButton(
-                onPressed: () => ref.invalidate(agentsProvider),
-                child: const Text('重试'),
-              ),
-            ],
-          ),
+        loading: () => const EchoLoadingState.list(),
+        error: (err, _) => EchoErrorState(
+          message: '加载失败: $err',
+          onRetry: () => ref.invalidate(agentsProvider),
         ),
       ),
     );
@@ -124,44 +114,12 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.all(32.w),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.smart_toy_outlined,
-              size: 64,
-              color: AppTheme.primaryLightColor,
-            ),
-            SizedBox(height: 16.h),
-            Text(
-              '还没有AI助手',
-              style: TextStyle(
-                fontSize: 18.sp,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimaryColor,
-              ),
-            ),
-            SizedBox(height: 8.h),
-            Text(
-              '添加你自己的AI助手，支持任何OpenAI API兼容的服务',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14.sp,
-                color: AppTheme.textSecondaryColor,
-              ),
-            ),
-            SizedBox(height: 24.h),
-            ElevatedButton.icon(
-              onPressed: onCreate,
-              icon: const Icon(Icons.add),
-              label: const Text('添加AI助手'),
-            ),
-          ],
-        ),
-      ),
+    return EchoEmptyState(
+      icon: Icons.smart_toy_outlined,
+      title: '还没有AI助手',
+      subtitle: '添加你自己的AI助手，支持任何OpenAI API兼容的服务',
+      actionLabel: '添加AI助手',
+      onAction: onCreate,
     );
   }
 }

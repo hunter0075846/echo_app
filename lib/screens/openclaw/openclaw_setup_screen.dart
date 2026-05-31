@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../services/openclaw_service.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/gradient_scaffold.dart';
 
 /// OpenClaw 关联引导页面
 class OpenClawSetupScreen extends StatefulWidget {
@@ -177,7 +178,7 @@ class _OpenClawSetupScreenState extends State<OpenClawSetupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return GradientScaffold(
       appBar: AppBar(
         title: Text(widget.connectionId != null ? '重新关联' : '关联 OpenClaw'),
       ),

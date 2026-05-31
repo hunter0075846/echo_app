@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../../models/log_model.dart';
 import '../../services/log_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/gradient_scaffold.dart';
 
 class LogViewerScreen extends StatefulWidget {
   const LogViewerScreen({Key? key}) : super(key: key);
@@ -67,7 +68,7 @@ class _LogViewerScreenState extends State<LogViewerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return GradientScaffold(
       appBar: AppBar(
         title: const Text('调试日志'),
         actions: [

@@ -9,6 +9,7 @@ import '../../services/friend_service.dart';
 import '../../services/message_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/avatars/user_avatar.dart';
+import '../../widgets/gradient_scaffold.dart';
 
 class PrivateChatScreen extends ConsumerStatefulWidget {
   final String userId;
@@ -107,7 +108,7 @@ class _PrivateChatScreenState extends ConsumerState<PrivateChatScreen> {
   Widget build(BuildContext context) {
     final currentUser = ref.watch(authStateProvider).value;
 
-    return Scaffold(
+    return GradientScaffold(
       appBar: AppBar(
         title: Row(
           children: [
@@ -178,6 +179,8 @@ class _PrivateChatScreenState extends ConsumerState<PrivateChatScreen> {
                       return _ChatMessage(
                         message: message,
                         isMe: isMe,
+                        senderName: isMe ? currentUser?.nickname : _nickname,
+                        senderAvatar: isMe ? currentUser?.avatar : _avatar,
                       );
                     },
                   ),
@@ -185,10 +188,10 @@ class _PrivateChatScreenState extends ConsumerState<PrivateChatScreen> {
           Container(
             padding: EdgeInsets.all(12.w),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.surface,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
+                  color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.05),
                   blurRadius: 10,
                   offset: const Offset(0, -5),
                 ),
@@ -290,10 +293,14 @@ class _PrivateChatScreenState extends ConsumerState<PrivateChatScreen> {
 class _ChatMessage extends StatelessWidget {
   final PrivateMessageModel message;
   final bool isMe;
+  final String? senderName;
+  final String? senderAvatar;
 
   const _ChatMessage({
     required this.message,
     required this.isMe,
+    this.senderName,
+    this.senderAvatar,
   });
 
   @override
@@ -313,6 +320,8 @@ class _ChatMessage extends StatelessWidget {
             if (!isMe) ...[
               UserAvatar(
                 id: message.senderId,
+                name: senderName,
+                imageUrl: senderAvatar,
                 size: 40,
               ),
               SizedBox(width: 8.w),
@@ -321,12 +330,12 @@ class _ChatMessage extends StatelessWidget {
               child: Container(
                 padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
                 decoration: BoxDecoration(
-                  color: isMe ? AppTheme.primaryColor : Colors.white,
+                  color: isMe ? AppTheme.primaryColor : Theme.of(context).colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(16.r),
                   boxShadow: [
                     if (!isMe)
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.05),
+                        color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.05),
                         blurRadius: 4,
                         offset: const Offset(0, 2),
                       ),
@@ -336,7 +345,7 @@ class _ChatMessage extends StatelessWidget {
                   message.content,
                   style: TextStyle(
                     fontSize: 14.sp,
-                    color: isMe ? Colors.white : AppTheme.textPrimaryColor,
+                    color: isMe ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
               ),
@@ -345,6 +354,8 @@ class _ChatMessage extends StatelessWidget {
               SizedBox(width: 8.w),
               UserAvatar(
                 id: message.senderId,
+                name: senderName,
+                imageUrl: senderAvatar,
                 size: 40,
               ),
             ],

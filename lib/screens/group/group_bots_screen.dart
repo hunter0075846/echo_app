@@ -9,6 +9,7 @@ import '../../services/group_service.dart';
 import '../../services/openclaw_service.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/gradient_scaffold.dart';
 
 /// 群 OpenClaw 管理页面
 class GroupBotsScreen extends ConsumerStatefulWidget {
@@ -185,7 +186,7 @@ class _GroupBotsScreenState extends ConsumerState<GroupBotsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return GradientScaffold(
       appBar: AppBar(
         title: const Text('群 OpenClaw'),
       ),

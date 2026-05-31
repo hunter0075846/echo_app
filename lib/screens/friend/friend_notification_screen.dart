@@ -6,6 +6,7 @@ import '../../models/friend_model.dart';
 import '../../services/friend_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/avatars/user_avatar.dart';
+import '../../widgets/gradient_scaffold.dart';
 
 class FriendNotificationScreen extends StatefulWidget {
   const FriendNotificationScreen({super.key});
@@ -199,7 +200,7 @@ class _FriendNotificationScreenState extends State<FriendNotificationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return GradientScaffold(
       appBar: AppBar(
         title: const Text('通知消息'),
       ),

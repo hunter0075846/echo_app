@@ -7,3 +7,4 @@
 -keep class io.flutter.plugins.** { *; }
 -keep class com.google.firebase.** { *; }
 -dontwarn io.flutter.embedding.**
+-dontwarn com.google.android.play.core.splitcompat.SplitCompatApplication

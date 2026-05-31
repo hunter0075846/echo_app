@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../services/update_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/gradient_scaffold.dart';
 
 class ForceUpdateScreen extends StatelessWidget {
   final UpdateInfo info;
@@ -15,7 +16,7 @@ class ForceUpdateScreen extends StatelessWidget {
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (_, __) {},
-      child: Scaffold(
+      child: GradientScaffold(
         body: SafeArea(
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: 32.w),

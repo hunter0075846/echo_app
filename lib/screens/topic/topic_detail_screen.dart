@@ -6,7 +6,11 @@ import '../../models/topic_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/topic_provider.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/loading_shimmer.dart';
+import '../../theme/design_tokens.dart';
+import '../../widgets/echo_empty_state.dart';
+import '../../widgets/echo_error_state.dart';
+import '../../widgets/echo_loading_state.dart';
+import '../../widgets/gradient_scaffold.dart';
 
 class TopicDetailScreen extends ConsumerWidget {
   final String topicId;
@@ -20,7 +24,7 @@ class TopicDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final topicState = ref.watch(topicDetailProvider(topicId));
 
-    return Scaffold(
+    return GradientScaffold(
       appBar: AppBar(
         title: const Text('话题详情'),
         actions: [
@@ -39,51 +43,20 @@ class TopicDetailScreen extends ConsumerWidget {
         ],
       ),
       body: topicState.isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const EchoLoadingState.detail()
           : topicState.error != null
-              ? _buildErrorWidget(context, ref, topicState.error!)
+              ? EchoErrorState(
+                  message: '加载失败: ${topicState.error}',
+                  onRetry: () {
+                    ref.read(topicDetailProvider(topicId).notifier).loadTopic();
+                  },
+                )
               : topicState.topic == null
-                  ? const Center(child: Text('话题不存在'))
+                  ? const EchoEmptyState(
+                      icon: Icons.inbox_outlined,
+                      title: '话题不存在',
+                    )
                   : _buildContent(context, ref, topicState),
-    );
-  }
-
-  Widget _buildErrorWidget(BuildContext context, WidgetRef ref, String error) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.error_outline,
-            size: 48.w,
-            color: AppTheme.textTertiaryColor,
-          ),
-          SizedBox(height: 16.h),
-          Text(
-            '加载失败',
-            style: TextStyle(
-              fontSize: 16.sp,
-              color: AppTheme.textSecondaryColor,
-            ),
-          ),
-          SizedBox(height: 8.h),
-          Text(
-            error,
-            style: TextStyle(
-              fontSize: 14.sp,
-              color: AppTheme.textTertiaryColor,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          SizedBox(height: 16.h),
-          ElevatedButton(
-            onPressed: () {
-              ref.read(topicDetailProvider(topicId).notifier).loadTopic();
-            },
-            child: const Text('重试'),
-          ),
-        ],
-      ),
     );
   }
 
@@ -101,10 +74,8 @@ class TopicDetailScreen extends ConsumerWidget {
                 // 话题信息
                 Text(
                   topic.title,
-                  style: TextStyle(
-                    fontSize: 20.sp,
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.textPrimaryColor,
                   ),
                 ),
                 SizedBox(height: 16.h),
@@ -166,10 +137,8 @@ class TopicDetailScreen extends ConsumerWidget {
                   children: [
                     Text(
                       '评论 (${topic.commentCount})',
-                      style: TextStyle(
-                        fontSize: 18.sp,
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: AppTheme.textPrimaryColor,
                       ),
                     ),
                     const Spacer(),
@@ -187,45 +156,23 @@ class TopicDetailScreen extends ConsumerWidget {
                 if (state.isLoadingComments)
                   const Center(child: CircularProgressIndicator())
                 else if (state.comments.isEmpty)
-                  Center(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 32.h),
-                      child: Column(
-                        children: [
-                          Icon(
-                            Icons.chat_bubble_outline,
-                            size: 48.w,
-                            color: AppTheme.textTertiaryColor,
-                          ),
-                          SizedBox(height: 16.h),
-                          Text(
-                            '暂无评论，来抢沙发吧',
-                            style: TextStyle(
-                              fontSize: 14.sp,
-                              color: AppTheme.textSecondaryColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                  EchoEmptyState(
+                    icon: Icons.chat_bubble_outline,
+                    title: '暂无评论',
+                    subtitle: '来抢沙发吧',
                   )
                 else
-                  ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: state.comments.length,
-                    itemBuilder: (context, index) {
-                      return _CommentItem(
-                        comment: state.comments[index],
-                        onReply: () {
-                          _showCommentInput(
-                            context,
-                            ref,
-                            parentId: state.comments[index].id,
-                          );
-                        },
-                      );
-                    },
+                  ...state.comments.map(
+                    (comment) => _CommentItem(
+                      comment: comment,
+                      onReply: () {
+                        _showCommentInput(
+                          context,
+                          ref,
+                          parentId: comment.id,
+                        );
+                      },
+                    ),
                   ),
               ],
             ),
@@ -233,12 +180,12 @@ class TopicDetailScreen extends ConsumerWidget {
         ),
         // 底部操作栏
         Container(
-          padding: EdgeInsets.all(16.w),
+          padding: EdgeInsets.all(EchoSpacing.md),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Theme.of(context).colorScheme.surface,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
+                color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.05),
                 blurRadius: 10,
                 offset: const Offset(0, -5),
               ),
@@ -484,8 +431,10 @@ class _CommentItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Padding(
-      padding: EdgeInsets.only(bottom: 16.h),
+      padding: EdgeInsets.only(bottom: EchoSpacing.md),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -510,18 +459,15 @@ class _CommentItem extends StatelessWidget {
               children: [
                 Text(
                   comment.author.nickname ?? '用户${comment.author.phone.substring(comment.author.phone.length - 4)}',
-                  style: TextStyle(
-                    fontSize: 14.sp,
+                  style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w500,
-                    color: AppTheme.textPrimaryColor,
                   ),
                 ),
                 SizedBox(height: 4.h),
                 Text(
                   comment.content,
-                  style: TextStyle(
-                    fontSize: 14.sp,
-                    color: AppTheme.textSecondaryColor,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.echoTextSecondary,
                   ),
                 ),
                 SizedBox(height: 8.h),
@@ -529,9 +475,8 @@ class _CommentItem extends StatelessWidget {
                   children: [
                     Text(
                       _formatTime(comment.createdAt),
-                      style: TextStyle(
-                        fontSize: 12.sp,
-                        color: AppTheme.textTertiaryColor,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.echoTextTertiary,
                       ),
                     ),
                     SizedBox(width: 16.w),
@@ -539,9 +484,8 @@ class _CommentItem extends StatelessWidget {
                       onTap: onReply,
                       child: Text(
                         '回复',
-                        style: TextStyle(
-                          fontSize: 12.sp,
-                          color: AppTheme.textTertiaryColor,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.echoTextTertiary,
                         ),
                       ),
                     ),
@@ -550,7 +494,7 @@ class _CommentItem extends StatelessWidget {
                       icon: Icon(
                         Icons.thumb_up_outlined,
                         size: 16.w,
-                        color: AppTheme.textTertiaryColor,
+                        color: theme.echoTextTertiary,
                       ),
                       onPressed: () {},
                       padding: EdgeInsets.zero,
@@ -559,9 +503,8 @@ class _CommentItem extends StatelessWidget {
                     SizedBox(width: 4.w),
                     Text(
                       comment.likeCount.toString(),
-                      style: TextStyle(
-                        fontSize: 12.sp,
-                        color: AppTheme.textTertiaryColor,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.echoTextTertiary,
                       ),
                     ),
                   ],

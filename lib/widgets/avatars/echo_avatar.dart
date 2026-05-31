@@ -29,7 +29,7 @@ class EchoAvatar {
         onTap: onTap,
       );
 
-  /// AI 助手「小安」头像（六边形 + 脉冲动画）
+  /// AI 助手「小E」头像（圆形 + 脉冲动画）
   static Widget ai({
     Key? key,
     double size = 48,
