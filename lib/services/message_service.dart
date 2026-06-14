@@ -1,10 +1,10 @@
 import '../models/friend_model.dart';
 import '../models/private_message_model.dart';
-import 'api_exception.dart';
 import 'api_service.dart';
 
 class MessageService {
   final ApiService _api = ApiService();
+  static final Map<String, List<PrivateMessageModel>> _messageCache = {};
 
   Future<List<ConversationModel>> getConversations() async {
     final response = await _api.get('/messages/conversations');
@@ -15,7 +15,13 @@ class MessageService {
   Future<List<PrivateMessageModel>> getMessages(String receiverId) async {
     final response = await _api.get('/messages?receiverId=$receiverId');
     final List<dynamic> data = response.data;
-    return data.map((item) => PrivateMessageModel.fromJson(item)).toList();
+    final messages = data.map((item) => PrivateMessageModel.fromJson(item)).toList();
+    _messageCache[receiverId] = messages;
+    return messages;
+  }
+
+  static List<PrivateMessageModel>? getCachedMessages(String receiverId) {
+    return _messageCache[receiverId];
   }
 
   Future<PrivateMessageModel> sendMessage({

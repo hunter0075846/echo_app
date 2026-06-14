@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import '../models/openclaw_connection_model.dart';
 import '../models/openclaw_message_model.dart';
@@ -18,7 +19,8 @@ class OpenClawService {
       final response = await _api.get('/openclaw');
       final List<dynamic> list = response.data['connections'] ?? [];
       return list
-          .map((e) => OpenClawConnectionModel.fromJson(e as Map<String, dynamic>))
+          .map((e) =>
+              OpenClawConnectionModel.fromJson(e as Map<String, dynamic>))
           .toList();
     } on DioException catch (e) {
       if (e.response?.statusCode == 401) {
@@ -53,10 +55,12 @@ class OpenClawService {
   }
 
   /// 获取单个连接详情
-  Future<OpenClawConnectionModel> getConnectionDetail(String connectionId) async {
+  Future<OpenClawConnectionModel> getConnectionDetail(
+      String connectionId) async {
     try {
       final response = await _api.get('/openclaw/$connectionId');
-      return OpenClawConnectionModel.fromJson(response.data as Map<String, dynamic>);
+      return OpenClawConnectionModel.fromJson(
+          response.data as Map<String, dynamic>);
     } on DioException catch (e) {
       if (e.response?.statusCode == 401) {
         throw Exception('登录已过期，请重新登录');
@@ -126,7 +130,9 @@ class OpenClawService {
         'connectionId': connectionId,
       });
       final List<dynamic> messages = response.data['messages'] ?? [];
-      return messages.map((e) => OpenClawMessageModel.fromJson(e as Map<String, dynamic>)).toList();
+      return messages
+          .map((e) => OpenClawMessageModel.fromJson(e as Map<String, dynamic>))
+          .toList();
     } on DioException catch (e) {
       if (e.response?.statusCode == 401) {
         throw Exception('登录已过期，请重新登录');
@@ -138,13 +144,15 @@ class OpenClawService {
   }
 
   /// 发送消息（指定连接）
-  Future<OpenClawMessageModel> sendMessage(String connectionId, String content) async {
+  Future<OpenClawMessageModel> sendMessage(
+      String connectionId, String content) async {
     try {
       final response = await _api.post('/openclaw/messages', data: {
         'connectionId': connectionId,
         'content': content,
       });
-      return OpenClawMessageModel.fromJson(response.data as Map<String, dynamic>);
+      return OpenClawMessageModel.fromJson(
+          response.data as Map<String, dynamic>);
     } on DioException catch (e) {
       if (e.response?.statusCode == 401) {
         throw Exception('登录已过期，请重新登录');
@@ -153,6 +161,27 @@ class OpenClawService {
       throw Exception('发送消息失败: $msg');
     } catch (e) {
       throw Exception('发送消息失败: $e');
+    }
+  }
+
+  /// 批量标记消息为已读
+  Future<void> markMessagesRead(
+      String connectionId, List<String> messageIds) async {
+    if (messageIds.isEmpty) return;
+    try {
+      await _api.patch('/openclaw/messages', data: {
+        'connectionId': connectionId,
+        'messageIds': messageIds,
+        'status': 'read',
+      });
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        throw Exception('登录已过期，请重新登录');
+      }
+      final msg = e.response?.data?['error'] ?? e.message;
+      throw Exception('标记已读失败: $msg');
+    } catch (e) {
+      throw Exception('标记已读失败: $e');
     }
   }
 
@@ -167,17 +196,18 @@ class OpenClawService {
     );
 
     final stream = response.data.stream as Stream<List<int>>;
-    await for (final line in utf8.decoder.bind(stream).transform(const LineSplitter())) {
+    await for (final line
+        in utf8.decoder.bind(stream).transform(const LineSplitter())) {
       if (line.startsWith('data: ')) {
         final jsonStr = line.substring(6);
         if (jsonStr.trim().isEmpty) continue;
         try {
           final data = jsonDecode(jsonStr) as Map<String, dynamic>;
           if (data['type'] == 'message') {
-            yield OpenClawMessageModel.fromJson(data as Map<String, dynamic>);
+            yield OpenClawMessageModel.fromJson(data);
           }
-        } catch (_) {
-          // 忽略无法解析的行
+        } catch (e, stack) {
+          debugPrint('[OpenClawSSE] parse error: $e\n$stack');
         }
       }
     }

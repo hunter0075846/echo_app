@@ -6,6 +6,7 @@ import '../../providers/assistant_chat_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/design_tokens.dart';
 import '../../utils/animation_utils.dart';
+import '../../utils/time_formatter.dart';
 import '../../widgets/avatars/ai_avatar.dart';
 import '../../widgets/chat_bubble.dart';
 import '../../widgets/echo_error_state.dart';
@@ -73,6 +74,10 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
       } else {
         _scrollController.jumpTo(maxExtent);
       }
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!_scrollController.hasClients) return;
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      });
     });
   }
 
@@ -170,6 +175,11 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
               itemCount: chatState.messages.length,
               itemBuilder: (context, index) {
                 final message = chatState.messages[index];
+                final prevMessage = index > 0 ? chatState.messages[index - 1] : null;
+                final showTimestamp = prevMessage == null ||
+                    message.isUser != prevMessage.isUser ||
+                    !TimeFormatter.isSameDay(message.createdAt, prevMessage.createdAt) ||
+                    !TimeFormatter.shouldGroup(message.createdAt, prevMessage.createdAt);
                 final isLast = index == chatState.messages.length - 1;
                 final isStreaming = isLast &&
                     message.role == 'assistant' &&
@@ -180,6 +190,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
                   child: ChatBubble(
                     message: message,
                     isStreaming: isStreaming,
+                    showTimestamp: showTimestamp,
                     onRetry: message.status == MessageStatus.failed
                         ? () => ref
                             .read(assistantChatNotifierProvider(widget.groupId).notifier)

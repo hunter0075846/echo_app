@@ -102,4 +102,18 @@
 
 ---
 
-**最后更新**: 2026-05-03
+## 链路 8：腾讯云 → GitHub（cline 仓库）
+
+| 属性 | 值 |
+|------|-----|
+| Key 名称 | `id_cline` |
+| Key 类型 | SSH Ed25519 密钥对 |
+| 公钥内容 |   - Title: tencent-server
+  - Key: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFGE6hHCV2Jyjm/NaXp6IyBtlb5FZ/TbmNZh125UOO3U cline-deploy |
+| 私钥 | 敏感，不展示 |
+| 存储位置 | `~/.ssh/id_cline` |
+| 配置位置 | cline 仓库 Settings → Deploy keys |
+| 用途 | 服务器 clone cline 仓库 |
+---
+
+**最后更新**: 2026-05-24

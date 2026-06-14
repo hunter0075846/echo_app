@@ -69,6 +69,15 @@ class GroupDetailState {
   }
 }
 
+bool _messagesUnchanged(
+    List<GroupMessageModel> a, List<GroupMessageModel> b) {
+  if (a.length != b.length) return false;
+  for (int i = 0; i < a.length; i++) {
+    if (a[i].id != b[i].id) return false;
+  }
+  return true;
+}
+
 final groupServiceProvider = Provider<GroupService>((ref) {
   return GroupService();
 });
@@ -192,11 +201,16 @@ class GroupDetailNotifier extends StateNotifier<GroupDetailState> {
     }
   }
 
-  Future<void> loadMessages() async {
-    state = state.copyWith(isLoadingMessages: true);
+  Future<void> loadMessages({bool silent = false}) async {
+    if (!silent) {
+      state = state.copyWith(isLoadingMessages: true);
+    }
 
     try {
       final messages = await _groupService.getGroupMessages(_groupId);
+      if (silent && _messagesUnchanged(state.messages, messages)) {
+        return;
+      }
       state = state.copyWith(
         messages: messages,
         isLoadingMessages: false,

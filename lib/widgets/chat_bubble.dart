@@ -6,6 +6,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../providers/assistant_chat_provider.dart';
 import '../theme/app_theme.dart';
+import '../utils/time_formatter.dart';
 import 'avatars/ai_avatar.dart';
 
 /// 聊天气泡组件
@@ -15,6 +16,7 @@ import 'avatars/ai_avatar.dart';
 class ChatBubble extends StatelessWidget {
   final ChatMessage message;
   final bool isStreaming;
+  final bool showTimestamp;
   final VoidCallback? onRetry;
   final VoidCallback? onForward;
 
@@ -22,6 +24,7 @@ class ChatBubble extends StatelessWidget {
     super.key,
     required this.message,
     this.isStreaming = false,
+    this.showTimestamp = false,
     this.onRetry,
     this.onForward,
   });
@@ -61,11 +64,33 @@ class ChatBubble extends StatelessWidget {
               ),
 
             Flexible(
-              child: GestureDetector(
-                onLongPress: () => _showActionSheet(context),
-                child: isUser
-                    ? _buildUserBubble(context)
-                    : _buildAIBubble(context, isDark),
+              child: Column(
+                crossAxisAlignment:
+                    isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  GestureDetector(
+                    onLongPress: () => _showActionSheet(context),
+                    child: isUser
+                        ? _buildUserBubble(context)
+                        : _buildAIBubble(context, isDark),
+                  ),
+                  if (showTimestamp && message.createdAt != null)
+                    Padding(
+                      padding: EdgeInsets.only(
+                        top: 4.h,
+                        left: isUser ? 0 : 4.w,
+                        right: isUser ? 4.w : 0,
+                      ),
+                      child: Text(
+                        TimeFormatter.formatChatTime(message.createdAt),
+                        style: TextStyle(
+                          fontSize: 10.sp,
+                          color: AppTheme.textTertiaryColor,
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
           ],

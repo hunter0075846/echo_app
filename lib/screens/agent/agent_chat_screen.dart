@@ -9,6 +9,7 @@ import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/design_tokens.dart';
 import '../../utils/animation_utils.dart';
+import '../../utils/time_formatter.dart';
 import '../../widgets/avatars/agent_avatar.dart';
 import '../../widgets/echo_empty_state.dart';
 import '../../widgets/echo_loading_state.dart';
@@ -61,6 +62,7 @@ class _AgentChatScreenState extends ConsumerState<AgentChatScreen> {
           );
           _isInitLoading = false;
         });
+        _scrollToBottom();
       }
     } catch (e) {
       if (mounted) {
@@ -140,13 +142,12 @@ class _AgentChatScreenState extends ConsumerState<AgentChatScreen> {
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
+      if (!_scrollController.hasClients) return;
+      _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!_scrollController.hasClients) return;
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      });
     });
   }
 
@@ -221,10 +222,16 @@ class _AgentChatScreenState extends ConsumerState<AgentChatScreen> {
                     itemCount: _messages.length,
                     itemBuilder: (context, index) {
                       final message = _messages[index];
+                      final prevMessage = index > 0 ? _messages[index - 1] : null;
+                      final showTimestamp = prevMessage == null ||
+                          message.isUser != prevMessage.isUser ||
+                          !TimeFormatter.isSameDay(message.timestamp, prevMessage.timestamp) ||
+                          !TimeFormatter.shouldGroup(message.timestamp, prevMessage.timestamp);
                       return _ChatBubble(
                         message: message,
                         agentName: _agent!.name,
                         agentAvatar: _agent!.avatar,
+                        showTimestamp: showTimestamp,
                       );
                     },
                   ),
@@ -398,11 +405,13 @@ class _ChatBubble extends StatelessWidget {
   final _ChatMessage message;
   final String agentName;
   final String? agentAvatar;
+  final bool showTimestamp;
 
   const _ChatBubble({
     required this.message,
     required this.agentName,
     this.agentAvatar,
+    this.showTimestamp = false,
   });
 
   @override
@@ -450,36 +459,58 @@ class _ChatBubble extends StatelessWidget {
 
             // 消息内容
             Flexible(
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
-                decoration: BoxDecoration(
-                  color: message.isUser
-                      ? AppTheme.primaryColor
-                      : message.isError
-                          ? AppTheme.errorColor.withValues(alpha: 0.05)
-                          : Theme.of(context).colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(16.r),
-                  boxShadow: [
-                    if (!message.isUser)
-                      BoxShadow(
-                        color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.05),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
+              child: Column(
+                crossAxisAlignment: message.isUser
+                    ? CrossAxisAlignment.end
+                    : CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+                    decoration: BoxDecoration(
+                      color: message.isUser
+                          ? AppTheme.primaryColor
+                          : message.isError
+                              ? AppTheme.errorColor.withValues(alpha: 0.05)
+                              : Theme.of(context).colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(16.r),
+                      boxShadow: [
+                        if (!message.isUser)
+                          BoxShadow(
+                            color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.05),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                      ],
+                    ),
+                    child: Text(
+                      message.content,
+                      style: TextStyle(
+                        fontSize: 14.sp,
+                        color: message.isUser
+                            ? Theme.of(context).colorScheme.onPrimary
+                            : message.isError
+                                ? AppTheme.errorColor
+                                : Theme.of(context).colorScheme.onSurface,
+                        height: 1.5,
                       ),
-                  ],
-                ),
-                child: Text(
-                  message.content,
-                  style: TextStyle(
-                    fontSize: 14.sp,
-                    color: message.isUser
-                        ? Theme.of(context).colorScheme.onPrimary
-                        : message.isError
-                            ? AppTheme.errorColor
-                            : Theme.of(context).colorScheme.onSurface,
-                    height: 1.5,
+                    ),
                   ),
-                ),
+                  if (showTimestamp)
+                    Padding(
+                      padding: EdgeInsets.only(
+                        top: 4.h,
+                        left: message.isUser ? 0 : 4.w,
+                        right: message.isUser ? 4.w : 0,
+                      ),
+                      child: Text(
+                        TimeFormatter.formatChatTime(message.timestamp),
+                        style: TextStyle(
+                          fontSize: 10.sp,
+                          color: AppTheme.textTertiaryColor,
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
           ],

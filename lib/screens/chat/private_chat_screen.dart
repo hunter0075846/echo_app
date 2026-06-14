@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -8,6 +9,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/friend_service.dart';
 import '../../services/message_service.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/time_formatter.dart';
 import '../../widgets/avatars/user_avatar.dart';
 import '../../widgets/gradient_scaffold.dart';
 
@@ -27,45 +29,80 @@ class PrivateChatScreen extends ConsumerStatefulWidget {
   ConsumerState<PrivateChatScreen> createState() => _PrivateChatScreenState();
 }
 
-class _PrivateChatScreenState extends ConsumerState<PrivateChatScreen> {
+class _PrivateChatScreenState extends ConsumerState<PrivateChatScreen>
+    with WidgetsBindingObserver {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final GlobalKey _firstUnreadKey = GlobalKey();
   final MessageService _messageService = MessageService();
   List<PrivateMessageModel> _messages = [];
   bool _isLoading = true;
+  bool _isRefreshing = false;
+  int? _firstUnreadIndex;
+  Timer? _pollTimer;
   late String? _nickname;
   late String? _avatar;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _nickname = widget.nickname;
     _avatar = widget.avatar;
-    _loadMessages();
+
+    final cached = MessageService.getCachedMessages(widget.userId);
+    if (cached != null) {
+      _messages = cached;
+      _firstUnreadIndex = _findFirstUnreadIndex(_messages);
+      _isLoading = false;
+    }
+
+    _loadMessages(silent: cached != null);
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _pollTimer?.cancel();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadMessages() async {
-    setState(() => _isLoading = true);
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadMessages(silent: true);
+    }
+  }
+
+  Future<void> _loadMessages({bool silent = false}) async {
+    if (!silent) {
+      setState(() => _isLoading = true);
+    } else {
+      setState(() => _isRefreshing = true);
+    }
     try {
-      _messages = await _messageService.getMessages(widget.userId);
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _scrollToBottom();
+      final messages = await _messageService.getMessages(widget.userId);
+      if (!mounted) return;
+      setState(() {
+        _messages = messages;
+        _firstUnreadIndex = _findFirstUnreadIndex(messages);
+        _isLoading = false;
+        _isRefreshing = false;
       });
+      _scrollToFirstUnreadOrBottom();
+      _startPolling();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('加载消息失败: $e')),
         );
+        setState(() {
+          _isLoading = false;
+          _isRefreshing = false;
+        });
       }
-    } finally {
-      setState(() => _isLoading = false);
     }
   }
 
@@ -95,13 +132,55 @@ class _PrivateChatScreenState extends ConsumerState<PrivateChatScreen> {
   }
 
   void _scrollToBottom() {
-    if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!_scrollController.hasClients) return;
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      });
+    });
+  }
+
+  int? _findFirstUnreadIndex(List<PrivateMessageModel> messages) {
+    final currentUser = ref.read(authStateProvider).value;
+    for (int i = 0; i < messages.length; i++) {
+      final message = messages[i];
+      if (message.senderId != currentUser?.id && !message.isRead) return i;
     }
+    return null;
+  }
+
+  void _scrollToFirstUnreadOrBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToBottom();
+    });
+  }
+
+  void _startPolling() {
+    _pollTimer?.cancel();
+    _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
+      try {
+        final messages = await _messageService.getMessages(widget.userId);
+        if (!mounted) return;
+        final hadNewMessages = messages.length > _messages.length;
+        setState(() {
+          _messages = messages;
+          _firstUnreadIndex = _findFirstUnreadIndex(messages);
+        });
+        if (hadNewMessages && _isNearBottom()) {
+          _scrollToBottom();
+        }
+      } catch (e) {
+        // 静默失败
+      }
+    });
+  }
+
+  bool _isNearBottom() {
+    if (!_scrollController.hasClients) return true;
+    final position = _scrollController.position;
+    return position.pixels >= position.maxScrollExtent - 100;
   }
 
   @override
@@ -165,8 +244,20 @@ class _PrivateChatScreenState extends ConsumerState<PrivateChatScreen> {
       ),
       body: Column(
         children: [
+          if (_isRefreshing)
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.symmetric(vertical: 8.h),
+              child: const Center(
+                child: SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            ),
           Expanded(
-            child: _isLoading
+            child: _isLoading && _messages.isEmpty
                 ? const Center(child: CircularProgressIndicator())
                 : ListView.builder(
                     controller: _scrollController,
@@ -176,11 +267,19 @@ class _PrivateChatScreenState extends ConsumerState<PrivateChatScreen> {
                     itemBuilder: (context, index) {
                       final message = _messages[index];
                       final isMe = message.senderId == currentUser?.id;
+                      final prevMessage = index > 0 ? _messages[index - 1] : null;
+                      final showTimestamp = prevMessage == null ||
+                          message.senderId != prevMessage.senderId ||
+                          !TimeFormatter.isSameDay(message.createdAt, prevMessage.createdAt) ||
+                          !TimeFormatter.shouldGroup(message.createdAt, prevMessage.createdAt);
                       return _ChatMessage(
+                        key: index == _firstUnreadIndex ? _firstUnreadKey : null,
                         message: message,
                         isMe: isMe,
                         senderName: isMe ? currentUser?.nickname : _nickname,
                         senderAvatar: isMe ? currentUser?.avatar : _avatar,
+                        showUnreadDivider: index == _firstUnreadIndex,
+                        showTimestamp: showTimestamp,
                       );
                     },
                   ),
@@ -295,73 +394,125 @@ class _ChatMessage extends StatelessWidget {
   final bool isMe;
   final String? senderName;
   final String? senderAvatar;
+  final bool showUnreadDivider;
+  final bool showTimestamp;
 
   const _ChatMessage({
+    super.key,
     required this.message,
     required this.isMe,
     this.senderName,
     this.senderAvatar,
+    this.showUnreadDivider = false,
+    this.showTimestamp = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Align(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: EdgeInsets.only(
-          bottom: 12.h,
-          left: isMe ? 64.w : 0,
-          right: isMe ? 0 : 64.w,
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (!isMe) ...[
-              UserAvatar(
-                id: message.senderId,
-                name: senderName,
-                imageUrl: senderAvatar,
-                size: 40,
-              ),
-              SizedBox(width: 8.w),
-            ],
-            Flexible(
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
-                decoration: BoxDecoration(
-                  color: isMe ? AppTheme.primaryColor : Theme.of(context).colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(16.r),
-                  boxShadow: [
-                    if (!isMe)
-                      BoxShadow(
-                        color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.05),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                  ],
-                ),
-                child: Text(
-                  message.content,
-                  style: TextStyle(
-                    fontSize: 14.sp,
-                    color: isMe ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.onSurface,
+    return Column(
+      children: [
+        if (showUnreadDivider)
+          Padding(
+            padding: EdgeInsets.only(bottom: 12.h),
+            child: Row(
+              children: [
+                Expanded(
+                    child: Divider(
+                        height: 1.h, color: AppTheme.textTertiaryColor)),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12.w),
+                  child: Text(
+                    '以下为新消息',
+                    style: TextStyle(
+                        fontSize: 12.sp, color: AppTheme.textTertiaryColor),
                   ),
                 ),
-              ),
+                Expanded(
+                    child: Divider(
+                        height: 1.h, color: AppTheme.textTertiaryColor)),
+              ],
             ),
-            if (isMe) ...[
-              SizedBox(width: 8.w),
-              UserAvatar(
-                id: message.senderId,
-                name: senderName,
-                imageUrl: senderAvatar,
-                size: 40,
-              ),
-            ],
-          ],
+          ),
+        Align(
+          alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+          child: Container(
+            margin: EdgeInsets.only(
+              bottom: 12.h,
+              left: isMe ? 64.w : 0,
+              right: isMe ? 0 : 64.w,
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (!isMe) ...[
+                  UserAvatar(
+                    id: message.senderId,
+                    name: senderName,
+                    imageUrl: senderAvatar,
+                    size: 40,
+                  ),
+                  SizedBox(width: 8.w),
+                ],
+                ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: 260.w),
+                  child: Column(
+                    crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
+                        decoration: BoxDecoration(
+                          color: isMe ? AppTheme.primaryColor : Theme.of(context).colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(16.r),
+                          boxShadow: [
+                            if (!isMe)
+                              BoxShadow(
+                                color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.05),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                          ],
+                        ),
+                        child: Text(
+                          message.content,
+                          style: TextStyle(
+                            fontSize: 14.sp,
+                            color: isMe ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
+                      if (showTimestamp)
+                        Padding(
+                          padding: EdgeInsets.only(
+                            top: 4.h,
+                            left: isMe ? 0 : 4.w,
+                            right: isMe ? 4.w : 0,
+                          ),
+                          child: Text(
+                            TimeFormatter.formatChatTime(message.createdAt),
+                            style: TextStyle(
+                              fontSize: 10.sp,
+                              color: AppTheme.textTertiaryColor,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                if (isMe) ...[
+                  SizedBox(width: 8.w),
+                  UserAvatar(
+                    id: message.senderId,
+                    name: senderName,
+                    imageUrl: senderAvatar,
+                    size: 40,
+                  ),
+                ],
+              ],
+            ),
+          ),
         ),
-      ),
+      ],
     );
   }
 }

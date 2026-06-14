@@ -10,6 +10,7 @@ import '../../services/openclaw_service.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/animation_utils.dart';
+import '../../utils/time_formatter.dart';
 import '../../widgets/avatars/openclaw_avatar.dart';
 import '../../widgets/gradient_scaffold.dart';
 
@@ -26,13 +27,16 @@ class OpenClawChatScreen extends ConsumerStatefulWidget {
   ConsumerState<OpenClawChatScreen> createState() => _OpenClawChatScreenState();
 }
 
-class _OpenClawChatScreenState extends ConsumerState<OpenClawChatScreen> {
+class _OpenClawChatScreenState extends ConsumerState<OpenClawChatScreen>
+    with WidgetsBindingObserver {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final GlobalKey _firstUnreadKey = GlobalKey();
   final List<OpenClawMessageModel> _messages = [];
   bool _isLoading = false;
   bool _isInitLoading = true;
   bool _isConnected = false;
+  int? _firstUnreadIndex;
   OpenClawConnectionModel? _connection;
 
   late final OpenClawService _service;
@@ -42,12 +46,14 @@ class _OpenClawChatScreenState extends ConsumerState<OpenClawChatScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _service = OpenClawService(ApiService());
     _loadData();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _messageController.dispose();
     _scrollController.dispose();
     _pollTimer?.cancel();
@@ -55,10 +61,25 @@ class _OpenClawChatScreenState extends ConsumerState<OpenClawChatScreen> {
     super.dispose();
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // 回到前台时刷新消息并重建 SSE，防止后台期间漏消息
+      _refreshMessages();
+      if (_isConnected) {
+        _connectSSE();
+      }
+    }
+  }
+
   Future<void> _loadData() async {
     try {
-      final connection = await _service.getConnectionDetail(widget.connectionId);
-      final status = await _service.getConnectionStatus(widget.connectionId);
+      final results = await Future.wait([
+        _service.getConnectionDetail(widget.connectionId),
+        _service.getConnectionStatus(widget.connectionId),
+      ]);
+      final connection = results[0] as OpenClawConnectionModel;
+      final status = results[1] as Map<String, dynamic>;
       final connected = status['connected'] == true;
 
       List<OpenClawMessageModel> messages = [];
@@ -74,12 +95,16 @@ class _OpenClawChatScreenState extends ConsumerState<OpenClawChatScreen> {
             ..clear()
             ..addAll(messages);
           _isInitLoading = false;
+          _firstUnreadIndex = _findFirstUnreadIndex(messages);
         });
       }
 
-      // 如果连接已建立，启动 SSE 实时推送
+      _scrollToFirstUnreadOrBottom();
+
+      // 如果连接已建立，启动 SSE 实时推送 + 轮询兜底
       if (connected) {
         _connectSSE();
+        _startPolling();
       }
     } catch (e) {
       if (mounted) {
@@ -103,6 +128,7 @@ class _OpenClawChatScreenState extends ConsumerState<OpenClawChatScreen> {
         debugPrint('[OpenClawChat] SSE error: $e');
       },
       onDone: () {
+        _sseSubscription = null;
         // 连接断开，3秒后重连
         Future.delayed(const Duration(seconds: 3), () {
           if (mounted && _isConnected) _connectSSE();
@@ -116,11 +142,16 @@ class _OpenClawChatScreenState extends ConsumerState<OpenClawChatScreen> {
     _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
       try {
         final messages = await _service.getMessages(widget.connectionId);
-        if (mounted) {
-          setState(() {
-            _messages.clear();
-            _messages.addAll(messages);
-          });
+        if (!mounted) return;
+        final hadNewMessages = messages.length > _messages.length;
+        setState(() {
+          _messages
+            ..clear()
+            ..addAll(messages);
+          _firstUnreadIndex = _findFirstUnreadIndex(messages);
+        });
+        if (hadNewMessages && _isNearBottom()) {
+          _scrollToBottom();
         }
       } catch (e) {
         // 静默失败
@@ -174,15 +205,64 @@ class _OpenClawChatScreenState extends ConsumerState<OpenClawChatScreen> {
     _scrollToBottom();
   }
 
+  bool _isNearBottom() {
+    if (!_scrollController.hasClients) return true;
+    final position = _scrollController.position;
+    return position.pixels >= position.maxScrollExtent - 100;
+  }
+
+  int? _findFirstUnreadIndex(List<OpenClawMessageModel> messages) {
+    for (int i = 0; i < messages.length; i++) {
+      if (messages[i].isUnread) return i;
+    }
+    return null;
+  }
+
+  void _scrollToFirstUnreadOrBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToBottom();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollToBottom();
+        if (mounted) _markUnreadMessagesAsRead(_messages);
+      });
+    });
+  }
+
+  Future<void> _markUnreadMessagesAsRead(
+      List<OpenClawMessageModel> messages) async {
+    final unreadIds =
+        messages.where((m) => m.isUnread).map((m) => m.id).toList();
+    if (unreadIds.isEmpty) return;
+
+    try {
+      await _service.markMessagesRead(widget.connectionId, unreadIds);
+      if (mounted) {
+        setState(() {
+          final updatedMessages = _messages.map((m) {
+            if (m.isUnread) {
+              return m.copyWith(status: 'read', readAt: DateTime.now());
+            }
+            return m;
+          }).toList();
+          _messages
+            ..clear()
+            ..addAll(updatedMessages);
+          _firstUnreadIndex = null;
+        });
+      }
+    } catch (e) {
+      debugPrint('[OpenClawChat] mark read error: $e');
+    }
+  }
+
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
+      if (!_scrollController.hasClients) return;
+      _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!_scrollController.hasClients) return;
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      });
     });
   }
 
@@ -191,10 +271,13 @@ class _OpenClawChatScreenState extends ConsumerState<OpenClawChatScreen> {
       final messages = await _service.getMessages(widget.connectionId);
       if (mounted) {
         setState(() {
-          _messages.clear();
-          _messages.addAll(messages);
+          _messages
+            ..clear()
+            ..addAll(messages);
+          _firstUnreadIndex = _findFirstUnreadIndex(messages);
         });
       }
+      _scrollToFirstUnreadOrBottom();
     } catch (e) {
       // 静默失败
     }
@@ -302,8 +385,18 @@ class _OpenClawChatScreenState extends ConsumerState<OpenClawChatScreen> {
                         itemCount: _messages.length,
                         itemBuilder: (context, index) {
                           final message = _messages[index];
+                          final prevMessage = index > 0 ? _messages[index - 1] : null;
+                          final showTimestamp = prevMessage == null ||
+                              message.isUser != prevMessage.isUser ||
+                              !TimeFormatter.isSameDay(message.createdAt, prevMessage.createdAt) ||
+                              !TimeFormatter.shouldGroup(message.createdAt, prevMessage.createdAt);
                           return _ChatBubble(
+                            key: index == _firstUnreadIndex
+                                ? _firstUnreadKey
+                                : null,
                             message: message,
+                            showUnreadDivider: index == _firstUnreadIndex,
+                            showTimestamp: showTimestamp,
                           );
                         },
                       ),
@@ -441,67 +534,122 @@ class _EmptyState extends StatelessWidget {
 
 class _ChatBubble extends StatelessWidget {
   final OpenClawMessageModel message;
+  final bool showUnreadDivider;
+  final bool showTimestamp;
 
   const _ChatBubble({
+    super.key,
     required this.message,
+    this.showUnreadDivider = false,
+    this.showTimestamp = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Align(
-      alignment: message.isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: EdgeInsets.only(
-          bottom: 16.h,
-          left: message.isUser ? 48.w : 0,
-          right: message.isUser ? 0 : 48.w,
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // OpenClaw头像
-            if (!message.isUser) ...[
-              OpenClawAvatar(
-                size: 36.w,
-                status: 'connected',
-              ),
-              SizedBox(width: 8.w),
-            ],
-
-            // 消息内容
-            Flexible(
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
-                decoration: BoxDecoration(
-                  color: message.isUser
-                      ? AppTheme.primaryColor
-                      : Theme.of(context).colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(16.r),
-                  boxShadow: [
-                    if (!message.isUser)
-                      BoxShadow(
-                        color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.05),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                  ],
-                ),
-                child: Text(
-                  message.content,
-                  style: TextStyle(
-                    fontSize: 14.sp,
-                    color: message.isUser
-                        ? Theme.of(context).colorScheme.onPrimary
-                        : Theme.of(context).colorScheme.onSurface,
-                    height: 1.5,
+    return Column(
+      children: [
+        if (showUnreadDivider)
+          Padding(
+            padding: EdgeInsets.only(bottom: 12.h),
+            child: Row(
+              children: [
+                Expanded(
+                    child: Divider(
+                        height: 1.h, color: AppTheme.textTertiaryColor)),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12.w),
+                  child: Text(
+                    '以下为新消息',
+                    style: TextStyle(
+                        fontSize: 12.sp, color: AppTheme.textTertiaryColor),
                   ),
                 ),
-              ),
+                Expanded(
+                    child: Divider(
+                        height: 1.h, color: AppTheme.textTertiaryColor)),
+              ],
             ),
-          ],
+          ),
+        Align(
+          alignment:
+              message.isUser ? Alignment.centerRight : Alignment.centerLeft,
+          child: Container(
+            margin: EdgeInsets.only(
+              bottom: 16.h,
+              left: message.isUser ? 48.w : 0,
+              right: message.isUser ? 0 : 48.w,
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // OpenClaw头像
+                if (!message.isUser) ...[
+                  OpenClawAvatar(
+                    size: 36.w,
+                    status: 'connected',
+                  ),
+                  SizedBox(width: 8.w),
+                ],
+
+                // 消息内容
+                Flexible(
+                  child: Column(
+                    crossAxisAlignment: message.isUser
+                        ? CrossAxisAlignment.end
+                        : CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+                        decoration: BoxDecoration(
+                          color: message.isUser
+                              ? AppTheme.primaryColor
+                              : Theme.of(context).colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(16.r),
+                          boxShadow: [
+                            if (!message.isUser)
+                              BoxShadow(
+                                color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.05),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                          ],
+                        ),
+                        child: Text(
+                          message.content,
+                          style: TextStyle(
+                            fontSize: 14.sp,
+                            color: message.isUser
+                                ? Theme.of(context).colorScheme.onPrimary
+                                : Theme.of(context).colorScheme.onSurface,
+                            height: 1.5,
+                          ),
+                        ),
+                      ),
+                      if (showTimestamp)
+                        Padding(
+                          padding: EdgeInsets.only(
+                            top: 4.h,
+                            left: message.isUser ? 0 : 4.w,
+                            right: message.isUser ? 4.w : 0,
+                          ),
+                          child: Text(
+                            TimeFormatter.formatChatTime(message.createdAt),
+                            style: TextStyle(
+                              fontSize: 10.sp,
+                              color: AppTheme.textTertiaryColor,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
-      ),
+      ],
     );
   }
 }

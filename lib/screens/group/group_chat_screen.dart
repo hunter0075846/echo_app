@@ -13,6 +13,7 @@ import '../../services/group_service.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/design_tokens.dart';
 import '../../utils/animation_utils.dart';
+import '../../utils/time_formatter.dart';
 import '../../widgets/avatars/user_avatar.dart';
 import '../../widgets/echo_dialog.dart';
 import '../../widgets/echo_error_state.dart';
@@ -38,16 +39,19 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
   bool _isAnonymous = false;
   StreamSubscription? _sseSubscription;
   bool _sseError = false;
+  Timer? _pollTimer;
 
   @override
   void initState() {
     super.initState();
     _connectSSE();
+    _startPolling();
   }
 
   @override
   void dispose() {
     _sseSubscription?.cancel();
+    _pollTimer?.cancel();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -55,8 +59,14 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
 
   void _connectSSE() {
     _sseSubscription?.cancel();
+    if (mounted && _sseError) {
+      setState(() => _sseError = false);
+    }
     _sseSubscription = _groupService.connectSSE(widget.groupId).listen(
       (message) {
+        if (mounted && _sseError) {
+          setState(() => _sseError = false);
+        }
         ref.read(groupDetailProvider(widget.groupId).notifier).addMessageFromSSE(message);
       },
       onError: (e) {
@@ -65,12 +75,30 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
       },
       onDone: () {
         if (mounted) setState(() => _sseError = true);
+        _sseSubscription = null;
         // 连接断开，3秒后重连
         Future.delayed(const Duration(seconds: 3), () {
           if (mounted) _connectSSE();
         });
       },
     );
+  }
+
+  void _startPolling() {
+    _pollTimer?.cancel();
+    _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
+      await _refreshMessages();
+    });
+  }
+
+  Future<void> _refreshMessages() async {
+    try {
+      await ref
+          .read(groupDetailProvider(widget.groupId).notifier)
+          .loadMessages(silent: true);
+    } catch (e) {
+      debugPrint('[GroupChat] poll refresh error: $e');
+    }
   }
 
   Future<void> _sendMessage() async {
@@ -155,11 +183,19 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
                     itemBuilder: (context, index) {
                       final message = groupState.messages[index];
                       final isMe = message.senderId == currentUser?.id;
+                      final prevMessage = index < groupState.messages.length - 1
+                          ? groupState.messages[index + 1]
+                          : null;
+                      final showTimestamp = prevMessage == null ||
+                          message.senderId != prevMessage.senderId ||
+                          !TimeFormatter.isSameDay(message.createdAt, prevMessage.createdAt) ||
+                          !TimeFormatter.shouldGroup(message.createdAt, prevMessage.createdAt);
                       return EchoAnimations.chatMessage(
                         isUser: isMe,
                         child: _ChatMessage(
                           message: message,
                           isMe: isMe,
+                          showTimestamp: showTimestamp,
                         ),
                       );
                     },
@@ -404,10 +440,12 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
 class _ChatMessage extends StatelessWidget {
   final GroupMessageModel message;
   final bool isMe;
+  final bool showTimestamp;
 
   const _ChatMessage({
     required this.message,
     required this.isMe,
+    this.showTimestamp = false,
   });
 
   @override
@@ -430,7 +468,8 @@ class _ChatMessage extends StatelessWidget {
               SizedBox(width: 8.w),
             ],
             // 消息内容
-            Flexible(
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: 260.w),
               child: Column(
                 crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
                 children: [
@@ -505,6 +544,21 @@ class _ChatMessage extends StatelessWidget {
                     ),
                     child: _buildMessageContent(context),
                   ),
+                  if (showTimestamp && message.createdAt != null)
+                    Padding(
+                      padding: EdgeInsets.only(
+                        top: 4.h,
+                        left: isMe ? 0 : 4.w,
+                        right: isMe ? 4.w : 0,
+                      ),
+                      child: Text(
+                        TimeFormatter.formatChatTime(message.createdAt),
+                        style: TextStyle(
+                          fontSize: 10.sp,
+                          color: AppTheme.textTertiaryColor,
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),

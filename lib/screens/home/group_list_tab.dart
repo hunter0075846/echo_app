@@ -54,27 +54,37 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
   Future<void> _loadOpenClawConnections() async {
     try {
       final connections = await _openClawService.getConnections();
-      final statusFutures = connections.map((conn) async {
-        try {
-          final status = await _openClawService.getConnectionStatus(conn.id);
-          return MapEntry(conn.id, status['connected'] == true);
-        } catch (e) {
-          return MapEntry(conn.id, false);
-        }
-      });
-      final statuses = await Future.wait(statusFutures);
-      final statusMap = Map.fromEntries(statuses);
       if (mounted) {
         setState(() {
           _openClawConnections = connections;
-          _openClawOnlineStatus = statusMap;
           _openClawLoading = false;
         });
       }
+      // 后台加载各连接状态，不阻塞卡片渲染
+      _loadOpenClawStatuses(connections);
     } catch (e) {
       if (mounted) {
         setState(() => _openClawLoading = false);
       }
+    }
+  }
+
+  Future<void> _loadOpenClawStatuses(
+      List<OpenClawConnectionModel> connections) async {
+    final statusFutures = connections.map((conn) async {
+      try {
+        final status = await _openClawService.getConnectionStatus(conn.id);
+        return MapEntry(conn.id, status['connected'] == true);
+      } catch (e) {
+        return MapEntry(conn.id, false);
+      }
+    });
+    final statuses = await Future.wait(statusFutures);
+    final statusMap = <String, bool>{}
+      ..addAll(_openClawOnlineStatus)
+      ..addEntries(statuses);
+    if (mounted) {
+      setState(() => _openClawOnlineStatus = statusMap);
     }
   }
 
@@ -142,7 +152,9 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
                   setState(() => _showAddFriendSheet = true);
                   break;
                 case 'connect_openclaw':
-                  context.push('/openclaw/setup').then((_) => _loadOpenClawConnections());
+                  context
+                      .push('/openclaw/setup')
+                      .then((_) => _loadOpenClawConnections());
                   break;
                 case 'scan_qr':
                   context.push('/scanner');
@@ -249,7 +261,8 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
                     children: [
                       Expanded(
                         child: TextButton(
-                          onPressed: () => setState(() => _showAddFriendSheet = false),
+                          onPressed: () =>
+                              setState(() => _showAddFriendSheet = false),
                           child: const Text('取消'),
                         ),
                       ),
@@ -283,7 +296,8 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
       );
     }
 
-    final hasAnyChat = conversationState.conversations.isNotEmpty || state.groups.isNotEmpty;
+    final hasAnyChat =
+        conversationState.conversations.isNotEmpty || state.groups.isNotEmpty;
 
     return ListView(
       padding: EdgeInsets.all(16.w),
@@ -294,7 +308,23 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
         const Divider(),
         SizedBox(height: 8.h),
 
-        if (_openClawLoading)
+        // OpenClaw 区域：有缓存数据时始终显示卡片，后台刷新只显示小 loading
+        if (_openClawConnections.isNotEmpty) ...[
+          ..._openClawConnections.take(2).map(
+                (conn) => _buildOpenClawConnectionCard(context, conn),
+              ),
+          if (_openClawLoading)
+            Padding(
+              padding: EdgeInsets.only(top: 8.h),
+              child: const Center(
+                child: SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            ),
+        ] else if (_openClawLoading)
           const Center(
             child: SizedBox(
               width: 20,
@@ -302,12 +332,8 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
               child: CircularProgressIndicator(strokeWidth: 2),
             ),
           )
-        else if (_openClawConnections.isEmpty)
-          _buildOpenClawConnectPrompt(context)
         else
-          ..._openClawConnections.take(2).map(
-                (conn) => _buildOpenClawConnectionCard(context, conn),
-              ),
+          _buildOpenClawConnectPrompt(context),
 
         if (_openClawConnections.length > 2)
           TextButton(
@@ -394,7 +420,8 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
                         ),
                         SizedBox(width: 6.w),
                         Container(
-                          padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 6.w, vertical: 2.h),
                           decoration: BoxDecoration(
                             color: AppTheme.accentColor.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(4.r),
@@ -436,9 +463,11 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
   }
 
   // OpenClaw 连接卡片
-  Widget _buildOpenClawConnectionCard(BuildContext context, OpenClawConnectionModel connection) {
+  Widget _buildOpenClawConnectionCard(
+      BuildContext context, OpenClawConnectionModel connection) {
     final isOnline = _openClawOnlineStatus[connection.id] ?? false;
-    final statusColor = isOnline ? AppTheme.successColor : AppTheme.warningColor;
+    final statusColor =
+        isOnline ? AppTheme.successColor : AppTheme.warningColor;
 
     return Container(
       margin: EdgeInsets.only(bottom: 10.h),
@@ -455,7 +484,9 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
         child: InkWell(
           onTap: () {
             if (connection.isPending) {
-              context.push('/openclaw/setup?id=${connection.id}').then((_) => _loadOpenClawConnections());
+              context
+                  .push('/openclaw/setup?id=${connection.id}')
+                  .then((_) => _loadOpenClawConnections());
             } else {
               context.push('/openclaw/chat?id=${connection.id}');
             }
@@ -486,13 +517,16 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
                           ),
                           SizedBox(width: 6.w),
                           Container(
-                            padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 6.w, vertical: 2.h),
                             decoration: BoxDecoration(
                               color: statusColor.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(4.r),
                             ),
                             child: Text(
-                              isOnline ? '在线' : (connection.isPending ? '等待连接' : '离线'),
+                              isOnline
+                                  ? '在线'
+                                  : (connection.isPending ? '等待连接' : '离线'),
                               style: TextStyle(
                                 fontSize: 10.sp,
                                 color: statusColor,
@@ -506,9 +540,7 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
                       Text(
                         isOnline
                             ? '点击开始对话'
-                            : (connection.isPending
-                                ? '请在设备上执行安装脚本'
-                                : '设备已离线'),
+                            : (connection.isPending ? '请在设备上执行安装脚本' : '设备已离线'),
                         style: TextStyle(
                           fontSize: 12.sp,
                           color: Theme.of(context).echoTextSecondary,
@@ -535,14 +567,17 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
   // 未关联时的引导
   Widget _buildOpenClawConnectPrompt(BuildContext context) {
     return InkWell(
-      onTap: () => context.push('/openclaw/setup').then((_) => _loadOpenClawConnections()),
+      onTap: () => context
+          .push('/openclaw/setup')
+          .then((_) => _loadOpenClawConnections()),
       borderRadius: BorderRadius.circular(12.r),
       child: Container(
         padding: EdgeInsets.symmetric(vertical: 16.h, horizontal: 14.w),
         decoration: BoxDecoration(
           color: AppTheme.backgroundColor,
           borderRadius: BorderRadius.circular(12.r),
-          border: Border.all(color: AppTheme.borderColor, style: BorderStyle.solid),
+          border:
+              Border.all(color: AppTheme.borderColor, style: BorderStyle.solid),
         ),
         child: Row(
           children: [
@@ -573,51 +608,6 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
               Icons.chevron_right,
               size: 18,
               color: AppTheme.primaryColor,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // 空聊天状态
-  Widget _buildEmptyChatState(BuildContext context, WidgetRef ref) {
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: 32.h),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.chat_bubble_outline,
-              size: 48.w,
-              color: Theme.of(context).echoTextTertiary,
-            ),
-            SizedBox(height: 12.h),
-            Text(
-              '还没有聊天',
-              style: TextStyle(
-                fontSize: 16.sp,
-                fontWeight: FontWeight.w500,
-                color: Theme.of(context).echoTextSecondary,
-              ),
-            ),
-            SizedBox(height: 6.h),
-            Text(
-              '创建群聊或添加好友',
-              style: TextStyle(
-                fontSize: 13.sp,
-                color: Theme.of(context).echoTextTertiary,
-              ),
-            ),
-            SizedBox(height: 16.h),
-            ElevatedButton.icon(
-              onPressed: () => _showCreateGroupDialog(context, ref),
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('创建群聊'),
-              style: ElevatedButton.styleFrom(
-                padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 10.h),
-              ),
             ),
           ],
         ),
@@ -672,9 +662,9 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
               Navigator.pop(context);
               try {
                 await ref.read(groupListProvider.notifier).createGroup(
-                  name: name,
-                  description: descController.text.trim(),
-                );
+                      name: name,
+                      description: descController.text.trim(),
+                    );
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('群聊创建成功')),
@@ -696,7 +686,8 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
   }
 
   // 私聊会话项
-  Widget _buildConversationTile(BuildContext context, ConversationModel conversation) {
+  Widget _buildConversationTile(
+      BuildContext context, ConversationModel conversation) {
     return ListTile(
       contentPadding: EdgeInsets.symmetric(horizontal: 0, vertical: 4.h),
       leading: UserAvatar(
@@ -800,7 +791,8 @@ class _GroupListTabState extends ConsumerState<GroupListTab> {
   // 通知消息入口
   Widget _buildNotificationTile(BuildContext context) {
     return InkWell(
-      onTap: () => context.push('/friend/notifications').then((_) => _loadInvites()),
+      onTap: () =>
+          context.push('/friend/notifications').then((_) => _loadInvites()),
       borderRadius: BorderRadius.circular(12.r),
       child: Container(
         padding: EdgeInsets.symmetric(vertical: 14.h, horizontal: 14.w),

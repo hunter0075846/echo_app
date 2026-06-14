@@ -49,6 +49,7 @@ class ForceUpdateApp extends StatelessWidget {
           title: '回响',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
           themeMode: ThemeMode.light,
           home: ForceUpdateScreen(info: info),
         );
@@ -85,6 +86,7 @@ class EchoApp extends ConsumerWidget {
           title: '回响',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
           themeMode: ThemeMode.light,
           routerConfig: router,
           builder: (context, child) {
