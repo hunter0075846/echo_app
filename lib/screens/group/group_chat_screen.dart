@@ -14,6 +14,7 @@ import '../../theme/app_theme.dart';
 import '../../theme/design_tokens.dart';
 import '../../utils/animation_utils.dart';
 import '../../utils/time_formatter.dart';
+import '../../widgets/avatars/openclaw_avatar.dart';
 import '../../widgets/avatars/user_avatar.dart';
 import '../../widgets/echo_dialog.dart';
 import '../../widgets/echo_error_state.dart';
@@ -34,27 +35,39 @@ class GroupChatScreen extends ConsumerStatefulWidget {
 
 class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
   final TextEditingController _messageController = TextEditingController();
+  final FocusNode _messageFocusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
   final GroupService _groupService = GroupService();
   bool _isAnonymous = false;
   StreamSubscription? _sseSubscription;
   bool _sseError = false;
   Timer? _pollTimer;
+  bool _showMentionPicker = false;
+  String _mentionQuery = '';
 
   @override
   void initState() {
     super.initState();
+    _messageFocusNode.addListener(_onFocusChanged);
     _connectSSE();
     _startPolling();
   }
 
   @override
   void dispose() {
+    _messageFocusNode.removeListener(_onFocusChanged);
+    _messageFocusNode.dispose();
     _sseSubscription?.cancel();
     _pollTimer?.cancel();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onFocusChanged() {
+    if (!_messageFocusNode.hasFocus && _showMentionPicker) {
+      setState(() => _showMentionPicker = false);
+    }
   }
 
   void _connectSSE() {
@@ -111,6 +124,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
         isAnonymous: _isAnonymous,
       );
       _messageController.clear();
+      if (_showMentionPicker) setState(() => _showMentionPicker = false);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -118,6 +132,157 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
         );
       }
     }
+  }
+
+  void _onMessageChanged(String value) {
+    final text = _messageController.text;
+    final selection = _messageController.selection;
+    if (!selection.isValid || selection.baseOffset < 0) {
+      if (_showMentionPicker) setState(() => _showMentionPicker = false);
+      return;
+    }
+
+    final cursorPosition = selection.baseOffset;
+    final beforeCursor = text.substring(0, cursorPosition);
+    final lastAtIndex = beforeCursor.lastIndexOf('@');
+
+    if (lastAtIndex == -1) {
+      if (_showMentionPicker) setState(() => _showMentionPicker = false);
+      return;
+    }
+
+    final query = beforeCursor.substring(lastAtIndex + 1);
+    if (query.contains(' ') || query.contains('\n')) {
+      if (_showMentionPicker) setState(() => _showMentionPicker = false);
+      return;
+    }
+
+    setState(() {
+      _showMentionPicker = true;
+      _mentionQuery = query;
+    });
+  }
+
+  void _insertMention(String displayName) {
+    final text = _messageController.text;
+    final selection = _messageController.selection;
+    final cursorPosition = selection.baseOffset;
+    final beforeCursor = text.substring(0, cursorPosition);
+    final lastAtIndex = beforeCursor.lastIndexOf('@');
+
+    if (lastAtIndex == -1) return;
+
+    final beforeMention = text.substring(0, lastAtIndex);
+    final afterCursor = text.substring(cursorPosition);
+    final newText = '$beforeMention@$displayName $afterCursor';
+    final newCursor = lastAtIndex + displayName.length + 2;
+
+    _messageController.value = TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(offset: newCursor),
+    );
+
+    setState(() => _showMentionPicker = false);
+  }
+
+  Widget _buildMentionPicker(GroupDetailState state) {
+    final query = _mentionQuery.toLowerCase();
+    final members = state.members.where((m) {
+      final name = m.user.nickname?.toLowerCase() ?? '';
+      return name.contains(query);
+    }).toList();
+    final bots = state.bots.where((b) {
+      return b.displayName.toLowerCase().contains(query);
+    }).toList();
+
+    if (members.isEmpty && bots.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      height: 250.h,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+        boxShadow: [
+          BoxShadow(
+            color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -5),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Center(
+            child: Container(
+              width: 36.w,
+              height: 4.h,
+              margin: EdgeInsets.symmetric(vertical: 8.h),
+              decoration: BoxDecoration(
+                color: AppTheme.textTertiaryColor.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2.r),
+              ),
+            ),
+          ),
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.symmetric(horizontal: 16.w),
+              children: [
+                if (members.isNotEmpty) ...[
+                  _buildMentionSectionHeader('成员'),
+                  ...members.map((m) => ListTile(
+                        leading: UserAvatar(
+                          id: m.user.id,
+                          name: m.user.nickname,
+                          imageUrl: m.user.avatar,
+                          size: 40,
+                        ),
+                        title: Text(m.user.nickname ?? '未知用户'),
+                        subtitle: Text(_roleLabel(m.role)),
+                        onTap: () => _insertMention(m.user.nickname ?? '未知用户'),
+                      )),
+                ],
+                if (bots.isNotEmpty) ...[
+                  _buildMentionSectionHeader('OpenClaw'),
+                  ...bots.map((b) => ListTile(
+                        leading: OpenClawAvatar(
+                          size: 40,
+                          status: b.connection?['status'] as String?,
+                        ),
+                        title: Text(b.displayName),
+                        subtitle: const Text('Bot'),
+                        onTap: () => _insertMention(b.displayName),
+                      )),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMentionSectionHeader(String title) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 8.h),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 12.sp,
+          fontWeight: FontWeight.w600,
+          color: AppTheme.textSecondaryColor,
+        ),
+      ),
+    );
+  }
+
+  String _roleLabel(String role) {
+    return switch (role) {
+      'owner' => '群主',
+      'admin' => '管理员',
+      _ => '成员',
+    };
   }
 
   @override
@@ -250,11 +415,13 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
                   ],
                 ),
                 SizedBox(height: 8.h),
+                if (_showMentionPicker) _buildMentionPicker(groupState),
                 Row(
                   children: [
                     Expanded(
                       child: TextField(
                         controller: _messageController,
+                        focusNode: _messageFocusNode,
                         decoration: InputDecoration(
                           hintText: _isAnonymous ? '匿名发言...' : '输入消息...',
                           filled: true,
@@ -268,6 +435,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
                             vertical: 10.h,
                           ),
                         ),
+                        onChanged: _onMessageChanged,
                         onSubmitted: (_) => _sendMessage(),
                       ),
                     ),

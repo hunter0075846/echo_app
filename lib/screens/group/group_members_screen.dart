@@ -8,6 +8,7 @@ import '../../providers/group_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/design_tokens.dart';
 import '../../widgets/avatars/user_avatar.dart';
+import '../../widgets/avatars/openclaw_avatar.dart';
 import '../../widgets/echo_dialog.dart';
 import '../../widgets/echo_error_state.dart';
 import '../../widgets/echo_loading_state.dart';
@@ -160,13 +161,21 @@ class _GroupMembersScreenState extends ConsumerState<GroupMembersScreen> {
     final groupState = ref.watch(groupDetailProvider(widget.groupId));
     final currentUser = ref.watch(authStateProvider).value;
     final members = _sortedMembers(groupState.members);
+    final bots = groupState.bots;
     final operatorRole = _operatorRole;
 
     return GradientScaffold(
       appBar: AppBar(
-        title: Text('群成员 (${members.length})'),
+        title: Text('群成员 (${members.length + bots.length})'),
       ),
-      body: _buildBody(context, groupState, members, currentUser?.id, operatorRole),
+      body: _buildBody(
+        context,
+        groupState,
+        members,
+        bots,
+        currentUser?.id,
+        operatorRole,
+      ),
     );
   }
 
@@ -174,6 +183,7 @@ class _GroupMembersScreenState extends ConsumerState<GroupMembersScreen> {
     BuildContext context,
     GroupDetailState state,
     List<GroupMemberModel> members,
+    List<GroupBotModel> bots,
     String? currentUserId,
     String? operatorRole,
   ) {
@@ -188,30 +198,54 @@ class _GroupMembersScreenState extends ConsumerState<GroupMembersScreen> {
       );
     }
 
-    if (members.isEmpty) {
+    if (members.isEmpty && bots.isEmpty) {
       return const EchoErrorState(
         message: '暂无成员',
         icon: Icons.people_outline,
       );
     }
 
+    final hasBots = bots.isNotEmpty;
+    final itemCount = members.length + (hasBots ? 1 + bots.length : 0);
+
     return RefreshIndicator(
       onRefresh: _refresh,
       child: ListView.separated(
         padding: EdgeInsets.all(EchoSpacing.md),
-        itemCount: members.length,
+        itemCount: itemCount,
         separatorBuilder: (_, __) => SizedBox(height: EchoSpacing.sm),
         itemBuilder: (context, index) {
-          final member = members[index];
-          return _MemberTile(
-            member: member,
-            isMe: member.user.id == currentUserId,
-            operatorRole: operatorRole,
-            onSetAdmin: () => _handleSetAdmin(member.user.id, member.user.nickname ?? '该用户'),
-            onRemoveAdmin: () => _handleRemoveAdmin(member.user.id, member.user.nickname ?? '该用户'),
-            onRemove: () => _handleRemove(member.user.id, member.user.nickname ?? '该用户'),
-            onTransferOwner: () => _handleTransfer(member.user.id, member.user.nickname ?? '该用户'),
-          );
+          if (index < members.length) {
+            final member = members[index];
+            return _MemberTile(
+              member: member,
+              isMe: member.user.id == currentUserId,
+              operatorRole: operatorRole,
+              onSetAdmin: () => _handleSetAdmin(member.user.id, member.user.nickname ?? '该用户'),
+              onRemoveAdmin: () => _handleRemoveAdmin(member.user.id, member.user.nickname ?? '该用户'),
+              onRemove: () => _handleRemove(member.user.id, member.user.nickname ?? '该用户'),
+              onTransferOwner: () => _handleTransfer(member.user.id, member.user.nickname ?? '该用户'),
+            );
+          }
+          if (index == members.length) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: EchoSpacing.md,
+                top: EchoSpacing.md,
+                bottom: EchoSpacing.sm,
+              ),
+              child: Text(
+                'OpenClaw',
+                style: TextStyle(
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textSecondaryColor,
+                ),
+              ),
+            );
+          }
+          final botIndex = index - members.length - 1;
+          return _BotTile(bot: bots[botIndex]);
         },
       ),
     );
@@ -392,6 +426,58 @@ class _MemberTile extends StatelessWidget {
   }
 }
 
+class _BotTile extends StatelessWidget {
+  final GroupBotModel bot;
+
+  const _BotTile({required this.bot});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: EchoSpacing.md,
+          vertical: EchoSpacing.sm,
+        ),
+        child: Row(
+          children: [
+            OpenClawAvatar(
+              size: 48,
+              status: bot.connection?['status'] as String?,
+            ),
+            SizedBox(width: EchoSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    bot.displayName,
+                    style: TextStyle(
+                      fontSize: 15.sp,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textPrimaryColor,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    '添加者: ${bot.ownerName}',
+                    style: TextStyle(
+                      fontSize: 11.sp,
+                      color: AppTheme.textTertiaryColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const _RoleChip(role: 'bot'),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _RoleChip extends StatelessWidget {
   final String role;
 
@@ -427,6 +513,11 @@ class _RoleChip extends StatelessWidget {
         ),
       'admin' => _RoleChipConfig(
           label: '管理员',
+          backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
+          foregroundColor: AppTheme.primaryColor,
+        ),
+      'bot' => _RoleChipConfig(
+          label: 'Bot',
           backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
           foregroundColor: AppTheme.primaryColor,
         ),

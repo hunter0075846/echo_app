@@ -33,6 +33,7 @@ class GroupDetailState {
   final GroupModel? group;
   final List<GroupMemberModel> members;
   final List<GroupMessageModel> messages;
+  final List<GroupBotModel> bots;
   final bool isLoading;
   final bool isLoadingMessages;
   final String? error;
@@ -42,6 +43,7 @@ class GroupDetailState {
     this.group,
     this.members = const [],
     this.messages = const [],
+    this.bots = const [],
     this.isLoading = false,
     this.isLoadingMessages = false,
     this.error,
@@ -52,6 +54,7 @@ class GroupDetailState {
     GroupModel? group,
     List<GroupMemberModel>? members,
     List<GroupMessageModel>? messages,
+    List<GroupBotModel>? bots,
     bool? isLoading,
     bool? isLoadingMessages,
     String? error,
@@ -61,6 +64,7 @@ class GroupDetailState {
       group: group ?? this.group,
       members: members ?? this.members,
       messages: messages ?? this.messages,
+      bots: bots ?? this.bots,
       isLoading: isLoading ?? this.isLoading,
       isLoadingMessages: isLoadingMessages ?? this.isLoadingMessages,
       error: error ?? this.error,
@@ -181,14 +185,26 @@ class GroupDetailNotifier extends StateNotifier<GroupDetailState> {
         group: group,
         isLoading: false,
       );
-      // 加载成员和消息
-      loadMembers();
-      loadMessages();
+      // 并行加载成员、消息和 bots
+      await Future.wait([
+        loadMembers(),
+        loadMessages(),
+        loadBots(),
+      ]);
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
         error: e.toString(),
       );
+    }
+  }
+
+  Future<void> loadBots() async {
+    try {
+      final bots = await _groupService.getGroupBots(_groupId);
+      state = state.copyWith(bots: bots);
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
     }
   }
 
