@@ -9,6 +9,7 @@ import '../screens/auth/login_screen.dart';
 import '../screens/group/ai_assistant_screen.dart';
 import '../screens/group/group_bots_screen.dart';
 import '../screens/group/group_chat_screen.dart';
+import '../screens/group/group_members_screen.dart';
 import '../screens/group/memory_timeline_screen.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/openclaw/openclaw_chat_screen.dart';
@@ -106,6 +107,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/group/:id/bots',
         builder: (context, state) => GroupBotsScreen(
+          groupId: state.pathParameters['id']!,
+        ),
+      ),
+      GoRoute(
+        path: '/group/:id/members',
+        builder: (context, state) => GroupMembersScreen(
           groupId: state.pathParameters['id']!,
         ),
       ),
