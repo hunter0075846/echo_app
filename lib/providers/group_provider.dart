@@ -272,6 +272,57 @@ class GroupDetailNotifier extends StateNotifier<GroupDetailState> {
     }
   }
 
+  /// 移除群成员并更新本地状态
+  Future<void> removeMember(String userId) async {
+    try {
+      await _groupService.removeMember(_groupId, userId);
+      state = state.copyWith(
+        members: state.members.where((m) => m.user.id != userId).toList(),
+      );
+      if (state.group != null) {
+        state = state.copyWith(
+          group: state.group!.copyWith(
+            currentMembers: state.group!.currentMembers - 1,
+          ),
+        );
+      }
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      rethrow;
+    }
+  }
+
+  /// 更新成员角色
+  Future<void> setMemberRole(String userId, String role) async {
+    try {
+      await _groupService.updateMemberRole(_groupId, userId, role);
+      state = state.copyWith(
+        members: state.members.map((m) {
+          if (m.user.id == userId) {
+            return m.copyWith(role: role);
+          }
+          return m;
+        }).toList(),
+      );
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      rethrow;
+    }
+  }
+
+  /// 转让群主
+  Future<void> transferOwnership(String newOwnerId) async {
+    try {
+      await _groupService.transferOwnership(_groupId, newOwnerId);
+      // 重新加载以同步 ownerId 和角色变化
+      await loadGroup();
+      await loadMembers();
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      rethrow;
+    }
+  }
+
   /// 从 SSE 接收新消息后添加到列表（避免去重：如果消息已存在则忽略）
   void addMessageFromSSE(GroupMessageModel message) {
     final exists = state.messages.any((m) => m.id == message.id);

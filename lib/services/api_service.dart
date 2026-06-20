@@ -103,8 +103,8 @@ class ApiService {
   Future<Response> put(String path, {dynamic data}) =>
       _safe(() => _dio.put(path, data: data));
 
-  Future<Response> delete(String path, {dynamic data}) =>
-      _safe(() => _dio.delete(path, data: data));
+  Future<Response> delete(String path, {dynamic data, Map<String, dynamic>? queryParameters}) =>
+      _safe(() => _dio.delete(path, data: data, queryParameters: queryParameters));
 
   Future<Response> patch(String path, {dynamic data}) =>
       _safe(() => _dio.patch(path, data: data));

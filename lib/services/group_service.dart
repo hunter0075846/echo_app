@@ -147,6 +147,27 @@ class GroupService {
     await _api.delete('/groups/$groupId/bots/$botId');
   }
 
+  // ---- 群成员管理 ----
+
+  Future<void> removeMember(String groupId, String userId) async {
+    await _api.delete('/groups/$groupId/members', queryParameters: {
+      'userId': userId,
+    });
+  }
+
+  Future<void> updateMemberRole(String groupId, String userId, String role) async {
+    await _api.patch('/groups/$groupId/members', data: {
+      'userId': userId,
+      'role': role,
+    });
+  }
+
+  Future<void> transferOwnership(String groupId, String newOwnerId) async {
+    await _api.post('/groups/$groupId/members/transfer', data: {
+      'newOwnerId': newOwnerId,
+    });
+  }
+
   /// 建立群聊 SSE 连接，实时接收新消息
   Stream<GroupMessageModel> connectSSE(String groupId) async* {
     final response = await _api.dio.get(

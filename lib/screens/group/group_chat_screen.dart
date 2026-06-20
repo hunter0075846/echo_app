@@ -387,7 +387,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
       await ref.read(groupDetailProvider(widget.groupId).notifier).leaveGroup();
       await ref.read(groupListProvider.notifier).removeGroup(widget.groupId);
       if (parentContext.mounted) {
-        Navigator.pop(parentContext);
+        parentContext.go('/');
       }
     } catch (e) {
       if (parentContext.mounted) {
@@ -425,7 +425,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
       await ref.read(groupDetailProvider(widget.groupId).notifier).deleteGroup();
       await ref.read(groupListProvider.notifier).removeGroup(widget.groupId);
       if (parentContext.mounted) {
-        Navigator.pop(parentContext);
+        parentContext.go('/');
       }
     } catch (e) {
       if (parentContext.mounted) {

@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../models/group_model.dart';
 import '../../models/openclaw_connection_model.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/group_provider.dart';
 import '../../services/group_service.dart';
 import '../../services/openclaw_service.dart';
 import '../../services/api_service.dart';
@@ -186,20 +188,31 @@ class _GroupBotsScreenState extends ConsumerState<GroupBotsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currentUser = ref.watch(authStateProvider).value;
+    final groupState = ref.watch(groupDetailProvider(widget.groupId));
+    final myMembership = groupState.members.cast<GroupMemberModel?>().firstWhere(
+          (m) => m?.user.id == currentUser?.id,
+          orElse: () => null,
+        );
+    final myRole = myMembership?.role;
+    final canManageBots = myRole == 'owner' || myRole == 'admin';
+
     return GradientScaffold(
       appBar: AppBar(
         title: const Text('群 OpenClaw'),
       ),
-      body: _buildBody(),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showAddBotSheet,
-        backgroundColor: AppTheme.primaryColor,
-        child: const Icon(Icons.add),
-      ),
+      body: _buildBody(canManageBots: canManageBots, currentUserId: currentUser?.id),
+      floatingActionButton: canManageBots
+          ? FloatingActionButton(
+              onPressed: _showAddBotSheet,
+              backgroundColor: AppTheme.primaryColor,
+              child: const Icon(Icons.add),
+            )
+          : null,
     );
   }
 
-  Widget _buildBody() {
+  Widget _buildBody({required bool canManageBots, String? currentUserId}) {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -247,6 +260,7 @@ class _GroupBotsScreenState extends ConsumerState<GroupBotsScreen> {
       itemCount: _bots.length,
       itemBuilder: (context, index) {
         final bot = _bots[index];
+        final canRemoveThisBot = canManageBots || bot.userId == currentUserId;
         return Card(
           margin: EdgeInsets.only(bottom: 12.h),
           child: ListTile(
@@ -266,10 +280,12 @@ class _GroupBotsScreenState extends ConsumerState<GroupBotsScreen> {
             ),
             title: Text(bot.displayName),
             subtitle: Text('添加者: ${bot.ownerName}'),
-            trailing: IconButton(
-              icon: const Icon(Icons.delete_outline, color: AppTheme.errorColor),
-              onPressed: () => _removeBot(bot.id),
-            ),
+            trailing: canRemoveThisBot
+                ? IconButton(
+                    icon: const Icon(Icons.delete_outline, color: AppTheme.errorColor),
+                    onPressed: () => _removeBot(bot.id),
+                  )
+                : null,
           ),
         );
       },
