@@ -42,6 +42,7 @@ class _GroupMembersScreenState extends ConsumerState<GroupMembersScreen> {
 
   Future<void> _refresh() async {
     await ref.read(groupDetailProvider(widget.groupId).notifier).loadMembers();
+    await ref.read(groupDetailProvider(widget.groupId).notifier).loadBots();
   }
 
   String? get _operatorRole {

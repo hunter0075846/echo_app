@@ -72,6 +72,7 @@ class _GroupBotsScreenState extends ConsumerState<GroupBotsScreen> {
         );
       }
       _loadData();
+      ref.read(groupDetailProvider(widget.groupId).notifier).loadBots();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -109,6 +110,7 @@ class _GroupBotsScreenState extends ConsumerState<GroupBotsScreen> {
         );
       }
       _loadData();
+      ref.read(groupDetailProvider(widget.groupId).notifier).loadBots();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
