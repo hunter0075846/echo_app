@@ -5,12 +5,16 @@ import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/animation_utils.dart';
+import '../screens/agent/agent_chat_screen.dart';
+import '../screens/agent/agent_create_screen.dart';
+import '../screens/agent/agent_list_screen.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/group/ai_assistant_screen.dart';
 import '../screens/group/group_bots_screen.dart';
 import '../screens/group/group_chat_screen.dart';
 import '../screens/group/group_members_screen.dart';
 import '../screens/group/memory_timeline_screen.dart';
+import '../screens/group/topic_card_discussion_screen.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/openclaw/openclaw_chat_screen.dart';
 import '../screens/openclaw/openclaw_detail_screen.dart';
@@ -19,6 +23,7 @@ import '../screens/openclaw/openclaw_setup_screen.dart';
 import '../screens/profile/about_screen.dart';
 import '../screens/profile/privacy_screen.dart';
 import '../screens/profile/profile_screen.dart';
+import '../screens/profile/settings_screen.dart';
 import '../screens/profile/terms_screen.dart';
 import '../screens/chat/private_chat_screen.dart';
 import '../screens/friend/friend_detail_screen.dart';
@@ -93,6 +98,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
+        path: '/group/:id/topic-card/:cardId',
+        builder: (context, state) => TopicCardDiscussionScreen(
+          groupId: state.pathParameters['id']!,
+          cardId: state.pathParameters['cardId']!,
+        ),
+      ),
+      GoRoute(
         path: '/group/:id/memories',
         builder: (context, state) => MemoryTimelineScreen(
           groupId: state.pathParameters['id']!,
@@ -131,6 +143,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
+        path: '/settings',
+        builder: (context, state) => const SettingsScreen(),
+      ),
+      GoRoute(
         path: '/about',
         builder: (context, state) => const AboutScreen(),
       ),
@@ -166,6 +182,30 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/openclaw/:id/edit',
         builder: (context, state) => OpenClawDetailScreen(
           connectionId: state.pathParameters['id']!,
+        ),
+      ),
+      // 自建 Agent（BYOK）路由
+      GoRoute(
+        path: '/agents',
+        builder: (context, state) => const AgentListScreen(),
+      ),
+      GoRoute(
+        path: '/agents/create',
+        builder: (context, state) => const AgentCreateScreen(),
+      ),
+      GoRoute(
+        path: '/agents/:id/chat',
+        pageBuilder: (context, state) => EchoPageTransitions.fadeUp(
+          key: state.pageKey,
+          child: AgentChatScreen(
+            agentId: state.pathParameters['id']!,
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/agents/:id/edit',
+        builder: (context, state) => AgentCreateScreen(
+          agentId: state.pathParameters['id'],
         ),
       ),
       GoRoute(

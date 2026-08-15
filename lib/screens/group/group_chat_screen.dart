@@ -20,6 +20,7 @@ import '../../widgets/echo_dialog.dart';
 import '../../widgets/echo_error_state.dart';
 import '../../widgets/echo_loading_state.dart';
 import '../../widgets/gradient_scaffold.dart';
+import '../../widgets/report_dialog.dart';
 
 class GroupChatScreen extends ConsumerStatefulWidget {
   final String groupId;
@@ -39,6 +40,9 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
   final ScrollController _scrollController = ScrollController();
   final GroupService _groupService = GroupService();
   bool _isAnonymous = false;
+  bool _attachVote = false;
+  final _voteAController = TextEditingController(text: '是');
+  final _voteBController = TextEditingController(text: '否');
   StreamSubscription? _sseSubscription;
   bool _sseError = false;
   Timer? _pollTimer;
@@ -60,6 +64,8 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
     _sseSubscription?.cancel();
     _pollTimer?.cancel();
     _messageController.dispose();
+    _voteAController.dispose();
+    _voteBController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -122,8 +128,14 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
       await ref.read(groupDetailProvider(widget.groupId).notifier).sendMessage(
         content: content,
         isAnonymous: _isAnonymous,
+        voteOptions: _isAnonymous && _attachVote
+            ? [_voteAController.text.trim(), _voteBController.text.trim()]
+                .where((o) => o.isNotEmpty)
+                .toList()
+            : null,
       );
       _messageController.clear();
+      if (_attachVote) setState(() => _attachVote = false);
       if (_showMentionPicker) setState(() => _showMentionPicker = false);
     } catch (e) {
       if (mounted) {
@@ -361,6 +373,10 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
                           message: message,
                           isMe: isMe,
                           showTimestamp: showTimestamp,
+                          onAlsoSay: () {
+                            setState(() => _isAnonymous = true);
+                            _messageFocusNode.requestFocus();
+                          },
                         ),
                       );
                     },
@@ -403,6 +419,15 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
                           color: AppTheme.anonymousColor,
                         ),
                       ),
+                    if (_isAnonymous) ...[
+                      SizedBox(width: 8.w),
+                      FilterChip(
+                        label: const Text('附投票'),
+                        selected: _attachVote,
+                        onSelected: (v) => setState(() => _attachVote = v),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ],
                     const Spacer(),
                     // 转发话题按钮
                     TextButton.icon(
@@ -415,6 +440,37 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
                   ],
                 ),
                 SizedBox(height: 8.h),
+                if (_isAnonymous && _attachVote)
+                  Padding(
+                    padding: EdgeInsets.only(bottom: 8.h),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _voteAController,
+                            maxLength: 20,
+                            decoration: const InputDecoration(
+                              labelText: '选项A',
+                              counterText: '',
+                              isDense: true,
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 8.w),
+                        Expanded(
+                          child: TextField(
+                            controller: _voteBController,
+                            maxLength: 20,
+                            decoration: const InputDecoration(
+                              labelText: '选项B',
+                              counterText: '',
+                              isDense: true,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 if (_showMentionPicker) _buildMentionPicker(groupState),
                 Row(
                   children: [
@@ -609,11 +665,13 @@ class _ChatMessage extends StatelessWidget {
   final GroupMessageModel message;
   final bool isMe;
   final bool showTimestamp;
+  final VoidCallback? onAlsoSay;
 
   const _ChatMessage({
     required this.message,
     required this.isMe,
     this.showTimestamp = false,
+    this.onAlsoSay,
   });
 
   @override
@@ -689,9 +747,58 @@ class _ChatMessage extends StatelessWidget {
                         ],
                       ),
                     ),
-                  // 消息气泡
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
+                  // 消息气泡（长按：加入回忆 / 举报）
+                  GestureDetector(
+                    onLongPress: () => showModalBottomSheet(
+                      context: context,
+                      builder: (context) => SafeArea(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            ListTile(
+                              leading: const Icon(Icons.auto_stories_outlined),
+                              title: const Text('加入回忆'),
+                              onTap: () async {
+                                Navigator.pop(context);
+                                final messenger = ScaffoldMessenger.of(context);
+                                try {
+                                  final sender = message.isAnonymous
+                                      ? '有人说'
+                                      : (message.senderName ?? '群友');
+                                  await GroupService().addMemory(
+                                    groupId: message.groupId,
+                                    title: '手动标记',
+                                    content: '$sender：${message.content}',
+                                  );
+                                  messenger.showSnackBar(
+                                    const SnackBar(content: Text('已加入回忆时间线')),
+                                  );
+                                } catch (e) {
+                                  messenger.showSnackBar(
+                                    SnackBar(content: Text('保存失败: $e')),
+                                  );
+                                }
+                              },
+                            ),
+                            if (!isMe)
+                              ListTile(
+                                leading: const Icon(Icons.report_outlined),
+                                title: const Text('举报'),
+                                onTap: () {
+                                  Navigator.pop(context);
+                                  showReportDialog(
+                                    context,
+                                    targetType: 'group_message',
+                                    targetId: message.id,
+                                  );
+                                },
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
                     decoration: BoxDecoration(
                       color: isMe
                           ? AppTheme.primaryColor
@@ -711,6 +818,7 @@ class _ChatMessage extends StatelessWidget {
                       ],
                     ),
                     child: _buildMessageContent(context),
+                    ),
                   ),
                   if (showTimestamp && message.createdAt != null)
                     Padding(
@@ -794,8 +902,10 @@ class _ChatMessage extends StatelessWidget {
     switch (message.type) {
       case 'agent_quote':
         return _buildAgentQuoteCard(context);
+      case 'topic_card':
+        return _buildTopicCardContent(context);
       default:
-        return Text(
+        final text = Text(
           message.content,
           style: TextStyle(
             fontSize: 14.sp,
@@ -807,6 +917,36 @@ class _ChatMessage extends StatelessWidget {
                         ? AppTheme.primaryColor
                         : AppTheme.textPrimaryColor,
           ),
+        );
+        // 话题讨论页里发出的消息同步进群消息流，带上来源标签
+        final cardId = message.metadata?['cardId'] as String?;
+        // 「有人说」附加区：投票 + 我也想说
+        final anonymousExtras = message.isAnonymous
+            ? _buildAnonymousExtras(context, text)
+            : null;
+        if (cardId == null && anonymousExtras == null) return text;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (cardId != null) ...[
+              GestureDetector(
+                onTap: () => context.push(
+                  '/group/${message.groupId}/topic-card/$cardId',
+                ),
+                child: Text(
+                  '来自话题讨论 ›',
+                  style: TextStyle(
+                    fontSize: 11.sp,
+                    color: isMe ? Colors.white70 : AppTheme.primaryColor,
+                  ),
+                ),
+              ),
+              SizedBox(height: 2.h),
+            ],
+            text,
+            ?anonymousExtras,
+          ],
         );
     }
   }
@@ -868,6 +1008,158 @@ class _ChatMessage extends StatelessWidget {
               style: TextStyle(
                 fontSize: 12.sp,
                 color: AppTheme.primaryColor,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  // 「有人说」附加区：附带投票（计数从 metadata 计算）+ 我也想说
+  Widget? _buildAnonymousExtras(BuildContext context, Text text) {
+    final vote = message.metadata?['vote'] as Map<String, dynamic>?;
+    final hasVote = vote != null && (vote['options'] as List?)?.isNotEmpty == true;
+    if (!hasVote && onAlsoSay == null) return null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (hasVote) ...[
+          SizedBox(height: 8.h),
+          ..._buildVoteButtons(context, vote),
+        ],
+        if (onAlsoSay != null) ...[
+          SizedBox(height: 6.h),
+          GestureDetector(
+            onTap: onAlsoSay,
+            child: Text(
+              '我也想说 ›',
+              style: TextStyle(
+                fontSize: 12.sp,
+                color: isMe ? Colors.white70 : AppTheme.anonymousColor,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  List<Widget> _buildVoteButtons(
+    BuildContext context,
+    Map<String, dynamic> vote,
+  ) {
+    final options = (vote['options'] as List).cast<String>();
+    final votes = (vote['votes'] as Map?)?.cast<String, String>() ?? {};
+    final myId = ProviderScope.containerOf(context, listen: false)
+        .read(authStateProvider)
+        .value
+        ?.id;
+    final counts = <String, int>{for (final o in options) o: 0};
+    for (final v in votes.values) {
+      if (counts.containsKey(v)) counts[v] = counts[v]! + 1;
+    }
+
+    return options.map((option) {
+      final isMine = myId != null && votes[myId] == option;
+      return GestureDetector(
+        onTap: () async {
+          final messenger = ScaffoldMessenger.of(context);
+          try {
+            await GroupService().voteOnMessage(
+              groupId: message.groupId,
+              messageId: message.id,
+              option: option,
+            );
+          } catch (e) {
+            messenger.showSnackBar(SnackBar(content: Text('投票失败: $e')));
+          }
+        },
+        child: Container(
+          margin: EdgeInsets.only(bottom: 4.h),
+          padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
+          decoration: BoxDecoration(
+            color: isMine
+                ? AppTheme.anonymousColor.withValues(alpha: 0.15)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(12.r),
+            border: Border.all(
+              color: isMine ? AppTheme.anonymousColor : AppTheme.borderColor,
+            ),
+          ),
+          child: Text(
+            '$option  ${counts[option]}票${isMine ? ' ✓' : ''}',
+            style: TextStyle(
+              fontSize: 12.sp,
+              color: isMe ? Colors.white : AppTheme.textPrimaryColor,
+            ),
+          ),
+        ),
+      );
+    }).toList();
+  }
+
+  // 话题卡片
+  Widget _buildTopicCardContent(BuildContext context) {
+    final metadata = message.metadata;
+    final cardId = metadata?['cardId'] as String?;
+    final topicTitle = metadata?['topicTitle'] as String? ?? '话题';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.forum_outlined, size: 14.w, color: AppTheme.primaryColor),
+            SizedBox(width: 4.w),
+            Text(
+              '话题卡片',
+              style: TextStyle(
+                fontSize: 12.sp,
+                color: AppTheme.primaryColor,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: 6.h),
+        if (message.content.isNotEmpty)
+          Padding(
+            padding: EdgeInsets.only(bottom: 4.h),
+            child: Text(
+              message.content,
+              style: TextStyle(
+                fontSize: 13.sp,
+                color: AppTheme.textSecondaryColor,
+              ),
+            ),
+          ),
+        Text(
+          topicTitle,
+          style: TextStyle(
+            fontSize: 15.sp,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.textPrimaryColor,
+          ),
+        ),
+        if (cardId != null) ...[
+          SizedBox(height: 8.h),
+          GestureDetector(
+            onTap: () => context.push(
+              '/group/${message.groupId}/topic-card/$cardId',
+            ),
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor,
+                borderRadius: BorderRadius.circular(16.r),
+              ),
+              child: Text(
+                '加入讨论',
+                style: TextStyle(fontSize: 12.sp, color: Colors.white),
               ),
             ),
           ),

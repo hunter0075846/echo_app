@@ -10,7 +10,9 @@ import '../../theme/design_tokens.dart';
 import '../../widgets/echo_empty_state.dart';
 import '../../widgets/echo_error_state.dart';
 import '../../widgets/echo_loading_state.dart';
+import '../../widgets/forward_topic_dialog.dart';
 import '../../widgets/gradient_scaffold.dart';
+import '../../widgets/report_dialog.dart';
 
 class TopicDetailScreen extends ConsumerWidget {
   final String topicId;
@@ -273,7 +275,7 @@ class TopicDetailScreen extends ConsumerWidget {
               title: const Text('举报'),
               onTap: () {
                 Navigator.pop(context);
-                // TODO: 举报
+                showReportDialog(context, targetType: 'topic', targetId: topicId);
               },
             ),
             if (state.topic?.author.id == ref.read(authStateProvider).value?.id)
@@ -394,27 +396,10 @@ class TopicDetailScreen extends ConsumerWidget {
   }
 
   void _showForwardDialog(BuildContext context, String topicId) {
-    // TODO: 实现转发到群的对话框
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('转发到群聊'),
-        content: const Text('选择要转发到的群聊'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('转发成功')),
-              );
-            },
-            child: const Text('转发'),
-          ),
-        ],
+      builder: (context) => Dialog.fullscreen(
+        child: ForwardTopicDialog(topicId: topicId),
       ),
     );
   }

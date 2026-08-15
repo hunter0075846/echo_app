@@ -43,27 +43,118 @@ class GroupService {
         .toList();
   }
 
-  // 获取群消息
-  Future<List<GroupMessageModel>> getGroupMessages(String groupId) async {
-    final response = await _api.get('/groups/$groupId/messages');
+  // 获取群消息（cardId 不为空时只看该话题卡片下的讨论消息）
+  Future<List<GroupMessageModel>> getGroupMessages(String groupId, {String? cardId}) async {
+    final response = await _api.get(
+      '/groups/$groupId/messages',
+      queryParameters: {if (cardId != null) 'cardId': cardId},
+    );
     return (response.data as List)
         .map((json) => GroupMessageModel.fromJson(json as Map<String, dynamic>))
         .toList();
   }
 
+  // 获取话题卡片详情（含话题信息）
+  Future<Map<String, dynamic>> getTopicCard(String groupId, String cardId) async {
+    final response = await _api.get('/groups/$groupId/topic-cards/$cardId');
+    return response.data as Map<String, dynamic>;
+  }
+
+  // 加入话题卡片讨论（参与数 +1）
+  Future<int> joinTopicCard(String groupId, String cardId) async {
+    final response = await _api.post('/groups/$groupId/topic-cards/$cardId/join');
+    return response.data['participantCount'] as int;
+  }
+
+  // 获取群回忆时间线
+  Future<List<Map<String, dynamic>>> getMemories(String groupId) async {
+    final response = await _api.get('/groups/$groupId/memories');
+    return (response.data as List).cast<Map<String, dynamic>>();
+  }
+
+  // 手动加入回忆
+  Future<void> addMemory({
+    required String groupId,
+    required String content,
+    String? title,
+  }) async {
+    await _api.post('/groups/$groupId/memories', data: {
+      'content': content,
+      if (title != null) 'title': title,
+    });
+  }
+
+  // 删除回忆（群主任意删，成员仅删涉及自己的）
+  Future<void> deleteMemory(String groupId, String memoryId) async {
+    await _api.delete('/groups/$groupId/memories/$memoryId');
+  }
+
+  // 获取群内某话题的投票状态
+  Future<Map<String, dynamic>?> getVote(String groupId, String topicId) async {
+    final response = await _api.get(
+      '/groups/$groupId/votes',
+      queryParameters: {'topicId': topicId},
+    );
+    return response.data as Map<String, dynamic>?;
+  }
+
+  // 投票 / 改投
+  Future<Map<String, dynamic>> submitVote({
+    required String groupId,
+    required String topicId,
+    required String option,
+  }) async {
+    final response = await _api.post('/groups/$groupId/votes', data: {
+      'topicId': topicId,
+      'option': option,
+    });
+    return response.data as Map<String, dynamic>;
+  }
+
+  // 在话题卡片讨论页发言（带 cardId 的普通文本消息）
+  Future<GroupMessageModel> sendCardMessage({
+    required String groupId,
+    required String cardId,
+    required String content,
+  }) async {
+    final response = await _api.post('/groups/$groupId/messages', data: {
+      'content': content,
+      'type': 'text',
+      'metadata': {'cardId': cardId},
+    });
+    return GroupMessageModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
   // 发送消息
+  // 发送消息（voteOptions：匿名消息附 1-2 个简单投票选项）
   Future<GroupMessageModel> sendMessage({
     required String groupId,
     required String content,
     String? mediaUrl,
     bool isAnonymous = false,
+    List<String>? voteOptions,
   }) async {
     final response = await _api.post('/groups/$groupId/messages', data: {
       'content': content,
       if (mediaUrl != null) 'mediaUrl': mediaUrl,
       'isAnonymous': isAnonymous,
+      if (voteOptions != null && voteOptions.isNotEmpty)
+        'metadata': {'voteOptions': voteOptions},
     });
     return GroupMessageModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  // 对「有人说」附带的投票投票/改投
+  Future<Map<String, dynamic>> voteOnMessage({
+    required String groupId,
+    required String messageId,
+    required String option,
+  }) async {
+    final response = await _api.post(
+      '/groups/$groupId/messages/$messageId/vote',
+      data: {'option': option},
+    );
+    return response.data as Map<String, dynamic>;
   }
 
   // 生成邀请码

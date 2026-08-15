@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/gradient_scaffold.dart';
 
@@ -96,6 +97,21 @@ class ProfileScreen extends ConsumerWidget {
           // 设置列表
           const Divider(),
 
+          ListTile(
+            leading: const Icon(Icons.smart_toy_outlined),
+            title: const Text('我的AI助手'),
+            subtitle: const Text('接入你自己的 OpenAI 兼容服务'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/agents'),
+          ),
+
+          ListTile(
+            leading: const Icon(Icons.settings_outlined),
+            title: const Text('设置'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/settings'),
+          ),
+
           // 退出登录按钮
           ListTile(
             leading: const Icon(Icons.logout, color: AppTheme.errorColor),
@@ -104,6 +120,53 @@ class ProfileScreen extends ConsumerWidget {
               style: TextStyle(color: AppTheme.errorColor),
             ),
             onTap: () => _showLogoutConfirmDialog(context, ref),
+          ),
+
+          ListTile(
+            leading: const Icon(Icons.no_accounts_outlined,
+                color: AppTheme.errorColor),
+            title: const Text(
+              '注销账号',
+              style: TextStyle(color: AppTheme.errorColor),
+            ),
+            onTap: () => _showDeleteAccountDialog(context, ref),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteAccountDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('注销账号'),
+        content: const Text(
+          '注销后你的好友、私聊、AI 助手配置将被删除，发布过的话题会被移除，群聊发言将显示为"已注销用户"。此操作不可恢复，确定继续？',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+              try {
+                await ApiService().delete('/auth/me');
+                await ref.read(authStateProvider.notifier).logout();
+                if (context.mounted) context.go('/login');
+              } catch (e) {
+                scaffoldMessenger.showSnackBar(
+                  SnackBar(content: Text('注销失败: $e')),
+                );
+              }
+            },
+            child: const Text(
+              '确认注销',
+              style: TextStyle(color: AppTheme.errorColor),
+            ),
           ),
         ],
       ),

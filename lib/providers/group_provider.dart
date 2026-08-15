@@ -243,6 +243,7 @@ class GroupDetailNotifier extends StateNotifier<GroupDetailState> {
     required String content,
     String? mediaUrl,
     bool isAnonymous = false,
+    List<String>? voteOptions,
   }) async {
     try {
       final message = await _groupService.sendMessage(
@@ -250,6 +251,7 @@ class GroupDetailNotifier extends StateNotifier<GroupDetailState> {
         content: content,
         mediaUrl: mediaUrl,
         isAnonymous: isAnonymous,
+        voteOptions: voteOptions,
       );
       state = state.copyWith(
         messages: [message, ...state.messages],
