@@ -83,7 +83,7 @@ class _TopicCardDiscussionScreenState
     }
   }
 
-  Future<void> _vote(String option) async {
+  Future<void> _submitVote(String option) async {
     final topicId = (_card?['topic'] as Map<String, dynamic>?)?['id'] as String?;
     if (topicId == null) return;
     try {
@@ -262,7 +262,7 @@ class _TopicCardDiscussionScreenState
             final ratio = total == 0 ? 0.0 : count / total;
             final isMine = myVote == option;
             return GestureDetector(
-              onTap: () => _vote(option),
+              onTap: () => _submitVote(option),
               child: Container(
                 margin: EdgeInsets.only(bottom: 6.h),
                 padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 8.h),

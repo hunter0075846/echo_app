@@ -945,7 +945,7 @@ class _ChatMessage extends StatelessWidget {
               SizedBox(height: 2.h),
             ],
             text,
-            ?anonymousExtras,
+            if (anonymousExtras != null) anonymousExtras,
           ],
         );
     }
